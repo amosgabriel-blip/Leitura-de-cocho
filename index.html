@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Leitura de Cocho · O.L</title>
+<meta name="theme-color" content="#1A3530">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --verde-escuro:#1A3530;
+    --verde-lage:#268A75;
+    --verde-lage-d:#1E6E5E;
+    --laranja:#F97316;
+    --laranja-d:#DB5E0A;
+    --vazio:#B3382C;
+    --vazio-d:#8F2C22;
+    --bg:#F7F5F0;
+    --card:#FFFFFF;
+    --linha:#E7E3D8;
+    --texto:#1F2A28;
+    --texto-sub:#5C6B67;
+    --sombra: 0 1px 2px rgba(26,53,48,.06), 0 6px 20px rgba(26,53,48,.08);
+    --radius: 18px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:var(--bg); color:var(--texto);
+    font-family:'Inter',sans-serif;
+    overscroll-behavior-y:none;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  h1,h2,h3,.display{font-family:'Manrope',sans-serif;}
+  #app{max-width:520px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column;}
+
+  /* ---------- topo ---------- */
+  header.top{
+    background:var(--verde-escuro); color:#fff;
+    padding:18px 20px 16px; position:sticky; top:0; z-index:20;
+    display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid rgba(255,255,255,.06);
+  }
+  header.top .marca{font-family:'Manrope',sans-serif; font-weight:800; font-size:17px; letter-spacing:.2px;}
+  header.top .marca span{color:var(--laranja);}
+  header.top .sub{font-size:12.5px; color:#B9C7C3; margin-top:2px;}
+  header.top button.icon{
+    background:rgba(255,255,255,.08); border:none; color:#fff; width:38px; height:38px;
+    border-radius:12px; font-size:16px; cursor:pointer;
+  }
+
+  main{flex:1; padding:18px 18px 100px;}
+
+  /* ---------- login ---------- */
+  .login-wrap{min-height:100vh; display:flex; flex-direction:column; justify-content:center; padding:32px 28px; background:var(--verde-escuro);}
+  .login-card{background:var(--card); border-radius:24px; padding:32px 26px; box-shadow:var(--sombra);}
+  .login-brand{font-family:'Manrope',sans-serif; font-weight:800; font-size:26px; color:var(--verde-escuro); margin-bottom:4px;}
+  .login-brand span{color:var(--laranja);}
+  .login-sub{color:var(--texto-sub); font-size:14px; margin-bottom:26px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:12.5px; font-weight:600; color:var(--texto-sub); margin-bottom:6px;}
+  .field input{
+    width:100%; padding:13px 14px; border-radius:12px; border:1.5px solid var(--linha);
+    font-size:15px; font-family:'Inter',sans-serif; background:#FBFAF7;
+  }
+  .field input:focus{outline:none; border-color:var(--verde-lage);}
+  .btn{
+    width:100%; border:none; border-radius:14px; padding:15px; font-size:15.5px; font-weight:700;
+    font-family:'Manrope',sans-serif; cursor:pointer; letter-spacing:.2px;
+  }
+  .btn-primary{background:var(--laranja); color:#fff;}
+  .btn-primary:active{background:var(--laranja-d);}
+  .msg-erro{color:var(--vazio); font-size:13px; margin-top:10px; min-height:16px;}
+
+  /* ---------- tabs inferiores ---------- */
+  nav.tabs{
+    position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid var(--linha);
+    display:flex; justify-content:center; z-index:20; padding-bottom:env(safe-area-inset-bottom);
+  }
+  nav.tabs .row{max-width:520px; width:100%; display:flex;}
+  nav.tabs button{
+    flex:1; background:none; border:none; padding:11px 4px 9px; font-family:'Inter',sans-serif;
+    font-size:11.5px; font-weight:600; color:var(--texto-sub); cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px;
+  }
+  nav.tabs button .ic{font-size:19px;}
+  nav.tabs button.active{color:var(--verde-lage-d);}
+
+  /* ---------- seleção de linha ---------- */
+  .grid-linhas{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:6px;}
+  .card-linha{
+    background:var(--card); border-radius:var(--radius); padding:20px 14px; text-align:center;
+    box-shadow:var(--sombra); border:1.5px solid transparent; cursor:pointer;
+  }
+  .card-linha .nome{font-family:'Manrope',sans-serif; font-weight:800; font-size:18px; color:var(--verde-escuro);}
+  .card-linha .qtd{font-size:12.5px; color:var(--texto-sub); margin-top:3px;}
+  .card-linha .status{margin-top:10px; font-size:11px; font-weight:700; padding:4px 9px; border-radius:20px; display:inline-block;}
+  .status.pendente{background:#FDECD8; color:var(--laranja-d);}
+  .status.concluido{background:#E1F0EB; color:var(--verde-lage-d);}
+
+  /* ---------- tela de leitura ---------- */
+  .barra-topo{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .barra-topo .titulo{font-family:'Manrope',sans-serif; font-weight:800; font-size:19px; color:var(--verde-escuro);}
+  .barra-topo .horario-chip{background:var(--verde-escuro); color:#fff; font-size:12.5px; font-weight:700; padding:5px 12px; border-radius:20px;}
+  .progresso-wrap{background:var(--linha); height:8px; border-radius:6px; overflow:hidden; margin-bottom:22px;}
+  .progresso-fill{height:100%; background:var(--verde-lage); transition:width .3s ease;}
+  .progresso-txt{font-size:12.5px; color:var(--texto-sub); margin-bottom:20px; margin-top:-14px;}
+
+  .curral-card{
+    background:var(--card); border-radius:22px; padding:34px 20px; text-align:center;
+    box-shadow:var(--sombra); margin-bottom:22px;
+  }
+  .curral-card .eyebrow{font-size:12.5px; color:var(--texto-sub); font-weight:600;}
+  .curral-card .num{font-family:'Manrope',sans-serif; font-weight:800; font-size:52px; color:var(--verde-escuro); line-height:1.1; margin:6px 0 2px;}
+
+  .botoes-marcar{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:26px;}
+  .btn-marcar{
+    border:none; border-radius:18px; padding:22px 8px; font-family:'Manrope',sans-serif; font-weight:800;
+    font-size:15.5px; color:#fff; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px;
+  }
+  .btn-marcar .emoji{font-size:30px;}
+  .btn-vazio{background:var(--vazio);}
+  .btn-vazio:active{background:var(--vazio-d);}
+  .btn-cheio{background:var(--verde-lage);}
+  .btn-cheio:active{background:var(--verde-lage-d);}
+
+  .lista-lancados{display:flex; flex-wrap:wrap; gap:8px;}
+  .chip-curral{
+    font-size:12.5px; font-weight:700; padding:7px 11px; border-radius:10px; font-family:'Inter',sans-serif;
+    display:flex; align-items:center; gap:5px;
+  }
+  .chip-curral.ok{background:#E1F0EB; color:var(--verde-lage-d);}
+  .chip-curral.no{background:#F6E1DE; color:var(--vazio-d);}
+  .chip-curral button{background:none; border:none; font-size:12px; color:inherit; cursor:pointer; opacity:.6; padding:0 0 0 2px;}
+
+  .concluido-box{
+    background:var(--card); border-radius:22px; padding:38px 24px; text-align:center; box-shadow:var(--sombra);
+  }
+  .concluido-box .ic{font-size:44px;}
+  .concluido-box h3{margin:10px 0 4px; color:var(--verde-escuro);}
+  .concluido-box p{color:var(--texto-sub); font-size:13.5px; margin:0;}
+
+  /* ---------- histórico ---------- */
+  .filtros{display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;}
+  .filtros select, .filtros input{
+    flex:1; min-width:100px; padding:10px 11px; border-radius:11px; border:1.5px solid var(--linha);
+    font-size:13.5px; font-family:'Inter',sans-serif; background:#fff;
+  }
+  .resumo-dia{display:flex; gap:10px; margin-bottom:16px;}
+  .resumo-card{flex:1; background:var(--card); border-radius:14px; padding:12px; text-align:center; box-shadow:var(--sombra);}
+  .resumo-card .n{font-family:'Manrope',sans-serif; font-weight:800; font-size:20px;}
+  .resumo-card .l{font-size:11px; color:var(--texto-sub); font-weight:600;}
+  .grupo-horario{margin-bottom:18px;}
+  .grupo-horario .titulo-grupo{font-size:12.5px; font-weight:700; color:var(--texto-sub); margin-bottom:8px; display:flex; justify-content:space-between;}
+  .linha-registro{
+    background:var(--card); border-radius:13px; padding:10px 14px; display:flex; align-items:center;
+    justify-content:space-between; margin-bottom:7px; box-shadow:var(--sombra);
+  }
+  .linha-registro .esq{display:flex; align-items:center; gap:10px;}
+  .linha-registro .bola{width:9px; height:9px; border-radius:50%;}
+  .bola.ok{background:var(--verde-lage);}
+  .bola.no{background:var(--vazio);}
+  .linha-registro .nome{font-weight:600; font-size:13.5px;}
+  .linha-registro .op{font-size:11px; color:var(--texto-sub);}
+  .vazio-estado{text-align:center; padding:50px 20px; color:var(--texto-sub);}
+  .vazio-estado .ic{font-size:34px; margin-bottom:8px;}
+  .btn-exportar{background:var(--verde-escuro); color:#fff; margin-top:6px;}
+
+  /* ---------- config (admin) ---------- */
+  .painel{background:var(--card); border-radius:var(--radius); padding:18px; box-shadow:var(--sombra); margin-bottom:16px;}
+  .painel h3{margin:0 0 12px; font-size:15px; color:var(--verde-escuro);}
+  .linha-config{display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--linha);}
+  .linha-config:last-child{border-bottom:none;}
+  .linha-config .info b{display:block; font-size:14px;}
+  .linha-config .info span{font-size:12px; color:var(--texto-sub);}
+  .linha-config button{background:none; border:1.5px solid var(--linha); border-radius:10px; padding:6px 10px; font-size:12px; cursor:pointer;}
+  textarea{
+    width:100%; min-height:90px; border-radius:11px; border:1.5px solid var(--linha); padding:10px 12px;
+    font-family:'Inter',sans-serif; font-size:13.5px; resize:vertical;
+  }
+  .row-2{display:flex; gap:8px;}
+  .btn-outline{background:#fff; color:var(--verde-escuro); border:1.5px solid var(--linha);}
+  .top-actions{display:flex; justify-content:flex-end; margin-bottom:10px;}
+  .link-sair{font-size:12.5px; color:var(--texto-sub); text-decoration:underline; background:none; border:none; cursor:pointer;}
+  .toast{
+    position:fixed; bottom:90px; left:50%; transform:translateX(-50%); background:var(--verde-escuro); color:#fff;
+    padding:11px 18px; border-radius:30px; font-size:13px; font-weight:600; z-index:60; box-shadow:var(--sombra);
+    opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(-4px);}
+  .oculto{display:none !important;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ===== LOGIN ===== -->
+  <div id="tela-login" class="login-wrap">
+    <div class="login-card">
+      <div class="login-brand">Leitura de <span>Cocho</span></div>
+      <div class="login-sub">Confinamento · O.L</div>
+      <div class="field">
+        <label>E-mail</label>
+        <input id="login-email" type="email" placeholder="seuemail@exemplo.com" autocomplete="username">
+      </div>
+      <div class="field">
+        <label>Senha</label>
+        <input id="login-senha" type="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary" id="btn-login">Entrar</button>
+      <div class="msg-erro" id="login-erro"></div>
+    </div>
+  </div>
+
+  <!-- ===== APP (logado) ===== -->
+  <div id="tela-app" class="oculto">
+    <header class="top">
+      <div>
+        <div class="marca">Leitura de <span>Cocho</span></div>
+        <div class="sub" id="header-sub">—</div>
+      </div>
+      <button class="icon" id="btn-refresh" title="Atualizar">⟳</button>
+    </header>
+
+    <main>
+      <!-- ---- VIEW: seleção de linha ---- -->
+      <section id="view-selecionar">
+        <h3 style="color:var(--verde-escuro); margin-bottom:2px;">Escolha a linha</h3>
+        <p style="color:var(--texto-sub); font-size:13px; margin-top:0;">Toque na linha que você vai lançar agora.</p>
+        <div class="grid-linhas" id="grid-linhas"></div>
+      </section>
+
+      <!-- ---- VIEW: leitura sequencial ---- -->
+      <section id="view-leitura" class="oculto">
+        <div class="barra-topo">
+          <div class="titulo" id="leitura-titulo">Linha 1</div>
+          <div class="horario-chip" id="leitura-horario">18h</div>
+        </div>
+        <div id="leitura-conteudo"></div>
+      </section>
+
+      <!-- ---- VIEW: histórico ---- -->
+      <section id="view-historico" class="oculto">
+        <h3 style="color:var(--verde-escuro); margin-bottom:12px;">Histórico</h3>
+        <div class="filtros">
+          <input type="date" id="filtro-data">
+          <select id="filtro-linha"><option value="">Todas as linhas</option></select>
+          <select id="filtro-horario">
+            <option value="">Todos horários</option>
+            <option value="18h">18h</option>
+            <option value="20h">20h</option>
+            <option value="00h">00h</option>
+            <option value="03h">03h</option>
+          </select>
+        </div>
+        <div class="resumo-dia" id="resumo-dia"></div>
+        <button class="btn btn-outline btn-exportar" id="btn-exportar-excel">⭳ Exportar para Excel</button>
+        <div id="lista-historico" style="margin-top:18px;"></div>
+      </section>
+
+      <!-- ---- VIEW: configuração (admin) ---- -->
+      <section id="view-config" class="oculto">
+        <h3 style="color:var(--verde-escuro); margin-bottom:12px;">Configurar linhas</h3>
+        <div class="painel">
+          <h3>Linhas cadastradas</h3>
+          <div id="lista-config-linhas">
+            <p style="color:var(--texto-sub); font-size:13px;">Nenhuma linha cadastrada ainda.</p>
+          </div>
+        </div>
+        <div class="painel">
+          <h3 id="form-titulo">Nova linha</h3>
+          <div class="field">
+            <label>Nome da linha</label>
+            <input id="config-nome" type="text" placeholder="Ex: Linha 3">
+          </div>
+          <div class="field">
+            <label>Currais (separados por vírgula, na ordem do trajeto)</label>
+            <textarea id="config-currais" placeholder="01, 02, 03, 04, 05..."></textarea>
+          </div>
+          <div class="row-2">
+            <button class="btn btn-outline" id="btn-cancelar-edicao" style="display:none;">Cancelar</button>
+            <button class="btn btn-primary" id="btn-salvar-linha">Salvar linha</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <nav class="tabs">
+      <div class="row">
+        <button data-tab="selecionar" class="active"><span class="ic">🐂</span>Lançar</button>
+        <button data-tab="historico"><span class="ic">📋</span>Histórico</button>
+        <button data-tab="config" id="tab-config" class="oculto"><span class="ic">⚙️</span>Config</button>
+      </div>
+    </nav>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import {
+  getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc, deleteDoc,
+  query, where, orderBy, onSnapshot, serverTimestamp, enableIndexedDbPersistence
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+// ===================== CONFIGURAÇÃO FIREBASE =====================
+// Substitua pelos dados do SEU projeto Firebase (Configurações do projeto > Seus apps > SDK)
+const firebaseConfig = {
+  apiKey: "AIzaSyAB4riRjWJ3f2OK7Fv2Efy5kuU_CWhRt5k",
+  authDomain: "leituracocho-9ac94.firebaseapp.com",
+  projectId: "leituracocho-9ac94",
+  storageBucket: "leituracocho-9ac94.firebasestorage.app",
+  messagingSenderId: "540806557891",
+  appId: "1:540806557891:web:bac2d9e7a4bbf1a9c2b276"
+};
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = getFirestore(fbApp);
+try { enableIndexedDbPersistence(db); } catch(e) { /* já habilitado ou navegador não suporta */ }
+
+// ===================== CONSTANTES =====================
+const HORARIOS = ["18h","20h","00h","03h"];
+let usuario = null;
+let papel = "operador"; // 'operador' | 'admin'
+let linhas = [];         // [{id, nome, currais:[...]}]
+let linhaAtual = null;
+let leiturasHoje = [];   // leituras já salvas do dia/linha/horario atual
+let editandoLinhaId = null;
+let unsubHistorico = null;
+
+// ===================== HELPERS =====================
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 2200);
+}
+
+function dataOperacionalHoje(){
+  const agora = new Date();
+  const d = new Date(agora);
+  if (agora.getHours() < 4) d.setDate(d.getDate() - 1);
+  return isoData(d);
+}
+function isoData(d){
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), day=String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+function dataFormatada(iso){
+  const [y,m,d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+// ===================== LOGIN =====================
+document.getElementById("btn-login").addEventListener("click", async ()=>{
+  const email = document.getElementById("login-email").value.trim();
+  const senha = document.getElementById("login-senha").value;
+  const erroEl = document.getElementById("login-erro");
+  erroEl.textContent = "";
+  if(!email || !senha){ erroEl.textContent = "Preencha e-mail e senha."; return; }
+  try{
+    await signInWithEmailAndPassword(auth, email, senha);
+  }catch(e){
+    erroEl.textContent = "E-mail ou senha inválidos.";
+  }
+});
+
+document.getElementById("link-sair-btn")?.addEventListener("click", ()=>signOut(auth));
+
+onAuthStateChanged(auth, async (user)=>{
+  if(user){
+    usuario = user;
+    // busca papel do usuário em /usuarios/{uid} — se não existir, assume operador
+    try{
+      const snap = await getDoc(doc(db, "usuarios", user.uid));
+      papel = snap.exists() ? (snap.data().papel || "operador") : "operador";
+    }catch(e){ papel = "operador"; }
+
+    document.getElementById("tela-login").classList.add("oculto");
+    document.getElementById("tela-app").classList.remove("oculto");
+    document.getElementById("header-sub").textContent = user.email + (papel==="admin" ? " · admin" : "");
+    document.getElementById("tab-config").classList.toggle("oculto", papel !== "admin");
+
+    await carregarLinhas();
+    mostrarTab("selecionar");
+  } else {
+    usuario = null;
+    document.getElementById("tela-app").classList.add("oculto");
+    document.getElementById("tela-login").classList.remove("oculto");
+  }
+});
+
+// ===================== NAVEGAÇÃO POR ABAS =====================
+document.querySelectorAll("nav.tabs button").forEach(btn=>{
+  btn.addEventListener("click", ()=> mostrarTab(btn.dataset.tab));
+});
+function mostrarTab(tab){
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("active", b.dataset.tab===tab));
+  document.getElementById("view-selecionar").classList.toggle("oculto", tab!=="selecionar");
+  document.getElementById("view-leitura").classList.toggle("oculto", true);
+  document.getElementById("view-historico").classList.toggle("oculto", tab!=="historico");
+  document.getElementById("view-config").classList.toggle("oculto", tab!=="config");
+  if(tab==="selecionar") renderSelecaoLinhas();
+  if(tab==="historico") abrirHistorico();
+  if(tab==="config") renderConfig();
+}
+document.getElementById("btn-refresh").addEventListener("click", ()=>{
+  if(linhaAtual) abrirLeitura(linhaAtual);
+  else renderSelecaoLinhas();
+});
+
+// ===================== CARREGAR LINHAS =====================
+async function carregarLinhas(){
+  const snap = await getDocs(collection(db, "linhas"));
+  linhas = snap.docs.map(d=>({id:d.id, ...d.data()}));
+  const sel = document.getElementById("filtro-linha");
+  sel.innerHTML = '<option value="">Todas as linhas</option>' +
+    linhas.map(l=>`<option value="${l.id}">${l.nome}</option>`).join("");
+}
+
+// ===================== TELA: SELECIONAR LINHA =====================
+async function renderSelecaoLinhas(){
+  const grid = document.getElementById("grid-linhas");
+  if(linhas.length===0){
+    grid.innerHTML = `<div class="vazio-estado" style="grid-column:1/-1;"><div class="ic">🐂</div>Nenhuma linha cadastrada.<br>${papel==="admin" ? "Vá em Config para cadastrar." : "Peça ao admin para cadastrar as linhas."}</div>`;
+    return;
+  }
+  grid.innerHTML = "";
+  for(const l of linhas){
+    const {horario, concluido} = await proximoHorarioPendente(l);
+    const card = document.createElement("div");
+    card.className = "card-linha";
+    card.innerHTML = `
+      <div class="nome">${l.nome}</div>
+      <div class="qtd">${l.currais.length} currais</div>
+      <div class="status ${concluido ? "concluido":"pendente"}">${concluido ? "✓ Ciclo concluído" : "Próxima: " + horario}</div>
+    `;
+    card.addEventListener("click", ()=> abrirLeitura(l));
+    grid.appendChild(card);
+  }
+}
+
+// determina, para uma linha, qual o próximo horário pendente no dia operacional atual
+async function proximoHorarioPendente(linhaObj){
+  const dataOp = dataOperacionalHoje();
+  for(const h of HORARIOS){
+    const q = query(collection(db,"leituras"),
+      where("linhaId","==",linhaObj.id), where("data","==",dataOp), where("horario","==",h));
+    const snap = await getDocs(q);
+    if(snap.size < linhaObj.currais.length){
+      return {horario:h, concluido:false, lancados: snap.docs.map(d=>d.data())};
+    }
+  }
+  return {horario:null, concluido:true, lancados:[]};
+}
+
+// ===================== TELA: LEITURA SEQUENCIAL =====================
+async function abrirLeitura(linhaObj){
+  linhaAtual = linhaObj;
+  document.getElementById("view-selecionar").classList.add("oculto");
+  document.getElementById("view-leitura").classList.remove("oculto");
+  document.getElementById("leitura-titulo").textContent = linhaObj.nome;
+
+  const {horario, concluido, lancados} = await proximoHorarioPendente(linhaObj);
+  const cont = document.getElementById("leitura-conteudo");
+
+  if(concluido){
+    document.getElementById("leitura-horario").textContent = "—";
+    cont.innerHTML = `
+      <div class="concluido-box">
+        <div class="ic">✅</div>
+        <h3>Ciclo do dia concluído</h3>
+        <p>Todas as leituras (18h, 20h, 00h e 03h) desta linha já foram lançadas.<br>Nova leitura abre às 18h.</p>
+      </div>
+      <button class="btn btn-outline" style="margin-top:14px;" id="btn-voltar-linhas">← Voltar</button>
+    `;
+    document.getElementById("btn-voltar-linhas").addEventListener("click", ()=>mostrarTab("selecionar"));
+    return;
+  }
+
+  document.getElementById("leitura-horario").textContent = horario;
+  const jaLancadosCurrais = new Set(lancados.map(l=>l.curral));
+  const restantes = linhaObj.currais.filter(c=>!jaLancadosCurrais.has(c));
+  const curralAtual = restantes[0];
+  const total = linhaObj.currais.length;
+  const feitos = total - restantes.length;
+
+  const chips = linhaObj.currais.map(c=>{
+    if(!jaLancadosCurrais.has(c)) return "";
+    const reg = lancados.find(l=>l.curral===c);
+    const ok = reg.status === "cheio";
+    return `<span class="chip-curral ${ok?"ok":"no"}">${ok?"👍":"👎"} ${c}</span>`;
+  }).join("");
+
+  cont.innerHTML = `
+    <div class="progresso-wrap"><div class="progresso-fill" style="width:${(feitos/total*100)}%"></div></div>
+    <div class="progresso-txt">${feitos} de ${total} currais lançados</div>
+    <div class="curral-card">
+      <div class="eyebrow">Curral atual</div>
+      <div class="num">${curralAtual}</div>
+    </div>
+    <div class="botoes-marcar">
+      <button class="btn-marcar btn-vazio" id="btn-vazio"><span class="emoji">👎</span>Vazio</button>
+      <button class="btn-marcar btn-cheio" id="btn-cheio"><span class="emoji">👍</span>Cheio</button>
+    </div>
+    ${chips ? `<div class="lista-lancados">${chips}</div>` : ""}
+    <button class="btn btn-outline" style="margin-top:20px;" id="btn-voltar-linhas">← Trocar de linha</button>
+  `;
+
+  document.getElementById("btn-cheio").addEventListener("click", ()=>lancar(linhaObj, horario, curralAtual, "cheio"));
+  document.getElementById("btn-vazio").addEventListener("click", ()=>lancar(linhaObj, horario, curralAtual, "vazio"));
+  document.getElementById("btn-voltar-linhas").addEventListener("click", ()=>mostrarTab("selecionar"));
+}
+
+async function lancar(linhaObj, horario, curral, status){
+  const dataOp = dataOperacionalHoje();
+  try{
+    await addDoc(collection(db,"leituras"), {
+      linhaId: linhaObj.id,
+      linhaNome: linhaObj.nome,
+      curral, horario, status,
+      data: dataOp,
+      operador: usuario.email,
+      timestamp: serverTimestamp()
+    });
+    toast(status==="cheio" ? `${curral} · Cheio 👍` : `${curral} · Vazio 👎`);
+    abrirLeitura(linhaObj);
+  }catch(e){
+    toast("Erro ao salvar. Tentando novamente ao reconectar.");
+  }
+}
+
+// ===================== HISTÓRICO =====================
+function abrirHistorico(){
+  document.getElementById("filtro-data").value = dataOperacionalHoje();
+  carregarHistorico();
+}
+["filtro-data","filtro-linha","filtro-horario"].forEach(id=>{
+  document.getElementById(id).addEventListener("change", carregarHistorico);
+});
+
+async function carregarHistorico(){
+  const data = document.getElementById("filtro-data").value;
+  const linhaId = document.getElementById("filtro-linha").value;
+  const horario = document.getElementById("filtro-horario").value;
+
+  let condicoes = [];
+  if(data) condicoes.push(where("data","==",data));
+  if(linhaId) condicoes.push(where("linhaId","==",linhaId));
+  if(horario) condicoes.push(where("horario","==",horario));
+
+  const q = condicoes.length ? query(collection(db,"leituras"), ...condicoes) : query(collection(db,"leituras"));
+  const snap = await getDocs(q);
+  let regs = snap.docs.map(d=>({id:d.id, ...d.data()}));
+  regs.sort((a,b)=> (a.horario+a.curral).localeCompare(b.horario+b.curral));
+
+  // resumo
+  const totalCheio = regs.filter(r=>r.status==="cheio").length;
+  const totalVazio = regs.filter(r=>r.status==="vazio").length;
+  document.getElementById("resumo-dia").innerHTML = `
+    <div class="resumo-card"><div class="n" style="color:var(--verde-lage-d)">${totalCheio}</div><div class="l">Cheio</div></div>
+    <div class="resumo-card"><div class="n" style="color:var(--vazio-d)">${totalVazio}</div><div class="l">Vazio</div></div>
+    <div class="resumo-card"><div class="n" style="color:var(--verde-escuro)">${regs.length}</div><div class="l">Total</div></div>
+  `;
+
+  const lista = document.getElementById("lista-historico");
+  if(regs.length===0){
+    lista.innerHTML = `<div class="vazio-estado"><div class="ic">📭</div>Nenhuma leitura encontrada para esse filtro.</div>`;
+    return;
+  }
+
+  const porHorario = {};
+  regs.forEach(r=>{
+    const k = r.horario;
+    (porHorario[k] = porHorario[k] || []).push(r);
+  });
+
+  lista.innerHTML = HORARIOS.filter(h=>porHorario[h]).map(h=>{
+    const itens = porHorario[h].map(r=>`
+      <div class="linha-registro">
+        <div class="esq">
+          <span class="bola ${r.status==='cheio'?'ok':'no'}"></span>
+          <span class="nome">${r.linhaNome} · Curral ${r.curral}</span>
+        </div>
+        <span class="op">${r.operador ? r.operador.split("@")[0] : ""}</span>
+      </div>
+    `).join("");
+    return `<div class="grupo-horario"><div class="titulo-grupo"><span>${h}</span><span>${porHorario[h].length} lançados</span></div>${itens}</div>`;
+  }).join("");
+
+  window._historicoAtual = regs;
+}
+
+document.getElementById("btn-exportar-excel").addEventListener("click", ()=>{
+  const regs = window._historicoAtual || [];
+  if(regs.length===0){ toast("Nada para exportar."); return; }
+  let csv = "Data,Horário,Linha,Curral,Status,Operador\n";
+  regs.forEach(r=>{
+    csv += `${r.data},${r.horario},${r.linhaNome},${r.curral},${r.status==='cheio'?'Cheio':'Vazio'},${r.operador||''}\n`;
+  });
+  const blob = new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8;"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `leitura-cocho-${document.getElementById("filtro-data").value || "historico"}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+});
+
+// ===================== CONFIG (ADMIN) =====================
+function renderConfig(){
+  const cont = document.getElementById("lista-config-linhas");
+  if(linhas.length===0){
+    cont.innerHTML = `<p style="color:var(--texto-sub); font-size:13px;">Nenhuma linha cadastrada ainda.</p>`;
+  } else {
+    cont.innerHTML = linhas.map(l=>`
+      <div class="linha-config">
+        <div class="info"><b>${l.nome}</b><span>${l.currais.length} currais</span></div>
+        <div style="display:flex; gap:6px;">
+          <button data-editar="${l.id}">Editar</button>
+          <button data-excluir="${l.id}">Excluir</button>
+        </div>
+      </div>
+    `).join("");
+    cont.querySelectorAll("[data-editar]").forEach(b=>b.addEventListener("click", ()=>editarLinha(b.dataset.editar)));
+    cont.querySelectorAll("[data-excluir]").forEach(b=>b.addEventListener("click", ()=>excluirLinha(b.dataset.excluir)));
+  }
+}
+
+function editarLinha(id){
+  const l = linhas.find(x=>x.id===id);
+  editandoLinhaId = id;
+  document.getElementById("form-titulo").textContent = "Editar linha";
+  document.getElementById("config-nome").value = l.nome;
+  document.getElementById("config-currais").value = l.currais.join(", ");
+  document.getElementById("btn-cancelar-edicao").style.display = "block";
+}
+document.getElementById("btn-cancelar-edicao").addEventListener("click", ()=>{
+  editandoLinhaId = null;
+  document.getElementById("form-titulo").textContent = "Nova linha";
+  document.getElementById("config-nome").value = "";
+  document.getElementById("config-currais").value = "";
+  document.getElementById("btn-cancelar-edicao").style.display = "none";
+});
+
+async function excluirLinha(id){
+  if(!confirm("Excluir esta linha? O histórico de leituras não será apagado.")) return;
+  await deleteDoc(doc(db,"linhas", id));
+  await carregarLinhas();
+  renderConfig();
+  toast("Linha excluída.");
+}
+
+document.getElementById("btn-salvar-linha").addEventListener("click", async ()=>{
+  const nome = document.getElementById("config-nome").value.trim();
+  const curraisRaw = document.getElementById("config-currais").value.trim();
+  if(!nome || !curraisRaw){ toast("Preencha nome e currais."); return; }
+  const currais = curraisRaw.split(",").map(c=>c.trim()).filter(Boolean);
+  try{
+    if(editandoLinhaId){
+      await setDoc(doc(db,"linhas", editandoLinhaId), {nome, currais});
+      toast("Linha atualizada.");
+    } else {
+      await addDoc(collection(db,"linhas"), {nome, currais});
+      toast("Linha cadastrada.");
+    }
+    document.getElementById("btn-cancelar-edicao").click();
+    await carregarLinhas();
+    renderConfig();
+  }catch(e){
+    toast("Erro ao salvar linha.");
+  }
+});
+
+// service worker (offline)
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("sw.js").catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>

@@ -100,6 +100,7 @@
   .card-linha .status{margin-top:10px; font-size:11px; font-weight:700; padding:4px 9px; border-radius:20px; display:inline-block;}
   .status.pendente{background:#FDECD8; color:var(--laranja-d);}
   .status.concluido{background:#E1F0EB; color:var(--verde-lage-d);}
+  .status.bloqueado{background:#ECE9DE; color:var(--texto-sub);}
 
   /* ---------- tela de leitura ---------- */
   .toggle-modo{display:flex; background:var(--linha); border-radius:14px; padding:4px; margin-bottom:18px;}
@@ -194,6 +195,13 @@
   /* ---------- config (admin) ---------- */
   .painel{background:var(--card); border-radius:var(--radius); padding:18px; box-shadow:var(--sombra); margin-bottom:16px;}
   .painel h3{margin:0 0 12px; font-size:15px; color:var(--verde-escuro);}
+
+  .grafico-barras{display:flex; align-items:flex-end; gap:7px; height:130px; overflow-x:auto; padding-top:6px;}
+  .barra-dia{display:flex; flex-direction:column; align-items:center; justify-content:flex-end; min-width:32px; height:100%;}
+  .barra-fill{width:20px; background:var(--vazio); border-radius:6px 6px 2px 2px; min-height:3px; transition:height .3s ease;}
+  .barra-num{font-size:10.5px; font-weight:800; color:var(--vazio-d); margin-top:4px;}
+  .barra-label{font-size:9.5px; color:var(--texto-sub); margin-top:2px; white-space:nowrap;}
+  .badge-contagem{background:var(--vazio); color:#fff; font-size:11.5px; font-weight:700; padding:3px 10px; border-radius:20px;}
   .linha-config{display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--linha);}
   .linha-config:last-child{border-bottom:none;}
   .linha-config .info b{display:block; font-size:14px;}
@@ -287,6 +295,33 @@
         <div id="lista-historico" style="margin-top:18px;"></div>
       </section>
 
+      <!-- ---- VIEW: alertas (admin/gestor) ---- -->
+      <section id="view-alertas" class="oculto">
+        <h3 style="color:var(--verde-escuro); margin-bottom:2px;">Cocho vazio · 18h e 20h</h3>
+        <p style="color:var(--texto-sub); font-size:13px; margin-top:0;">Leituras críticas — vazio nesses horários indica sub-oferta.</p>
+        <div class="filtros">
+          <input type="date" id="alerta-data-ini">
+          <input type="date" id="alerta-data-fim">
+          <select id="alerta-linha"><option value="">Todas as linhas</option></select>
+        </div>
+        <div class="resumo-dia" id="alerta-resumo"></div>
+
+        <div class="painel">
+          <h3>Vazios por dia</h3>
+          <div class="grafico-barras" id="alerta-grafico"></div>
+        </div>
+
+        <div class="painel">
+          <h3>Currais recorrentes <span style="font-weight:500; color:var(--texto-sub); font-size:12px;">(2+ vezes no período)</span></h3>
+          <div id="alerta-ranking"></div>
+        </div>
+
+        <div class="painel">
+          <h3>Ocorrências</h3>
+          <div id="alerta-lista"></div>
+        </div>
+      </section>
+
       <!-- ---- VIEW: configuração (admin) ---- -->
       <section id="view-config" class="oculto">
         <h3 style="color:var(--verde-escuro); margin-bottom:12px;">Configurar linhas</h3>
@@ -318,10 +353,12 @@
       <div class="row">
         <button data-tab="selecionar" class="active"><span class="ic">🐂</span>Lançar</button>
         <button data-tab="historico"><span class="ic">📋</span>Histórico</button>
+        <button data-tab="alertas" id="tab-alertas" class="oculto"><span class="ic">🚨</span>Alertas</button>
         <button data-tab="config" id="tab-config" class="oculto"><span class="ic">⚙️</span>Config</button>
       </div>
     </nav>
   </div>
+
 
   <div class="toast" id="toast"></div>
 </div>
@@ -360,6 +397,7 @@ let linhaAtual = null;
 let leiturasHoje = [];   // leituras já salvas do dia/linha/horario atual
 let editandoLinhaId = null;
 let unsubHistorico = null;
+let unsubAlertas = null;
 
 // ===================== HELPERS =====================
 function toast(msg){
@@ -382,6 +420,24 @@ function isoData(d){
 function dataFormatada(iso){
   const [y,m,d] = iso.split("-");
   return `${d}/${m}/${y}`;
+}
+
+// quantos minutos já se passaram desde o início do ciclo (18h) até agora
+// retorna -1 se estivermos fora da janela do ciclo (dia, antes das 18h)
+function minutosDesdeInicioCiclo(){
+  const agora = new Date();
+  const h = agora.getHours(), m = agora.getMinutes();
+  if(h>=18) return (h-18)*60+m;
+  if(h<4) return (h+24-18)*60+m;
+  return -1;
+}
+const HORARIO_MINUTOS = {"18h":0, "20h":120, "00h":360, "03h":540};
+
+// diz se já deu a hora real do celular para liberar esse horário
+function horarioLiberado(horario){
+  const decorrido = minutosDesdeInicioCiclo();
+  if(decorrido < 0) return false;
+  return decorrido >= HORARIO_MINUTOS[horario];
 }
 
 // ===================== LOGIN =====================
@@ -411,13 +467,15 @@ onAuthStateChanged(auth, async (user)=>{
 
     document.getElementById("tela-login").classList.add("oculto");
     document.getElementById("tela-app").classList.remove("oculto");
-    document.getElementById("header-sub").textContent = user.email + (papel==="admin" ? " · admin" : "");
+    document.getElementById("header-sub").textContent = user.email + (papel!=="operador" ? ` · ${papel}` : "");
     document.getElementById("tab-config").classList.toggle("oculto", papel !== "admin");
+    document.getElementById("tab-alertas").classList.toggle("oculto", !(papel==="admin" || papel==="gestor"));
 
     await carregarLinhas();
     mostrarTab("selecionar");
   } else {
     usuario = null;
+    if(unsubAlertas){ unsubAlertas(); unsubAlertas = null; }
     document.getElementById("tela-app").classList.add("oculto");
     document.getElementById("tela-login").classList.remove("oculto");
   }
@@ -428,13 +486,16 @@ document.querySelectorAll("nav.tabs button").forEach(btn=>{
   btn.addEventListener("click", ()=> mostrarTab(btn.dataset.tab));
 });
 function mostrarTab(tab){
+  if(tab!=="alertas" && unsubAlertas){ unsubAlertas(); unsubAlertas = null; }
   document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("active", b.dataset.tab===tab));
   document.getElementById("view-selecionar").classList.toggle("oculto", tab!=="selecionar");
   document.getElementById("view-leitura").classList.toggle("oculto", true);
   document.getElementById("view-historico").classList.toggle("oculto", tab!=="historico");
+  document.getElementById("view-alertas").classList.toggle("oculto", tab!=="alertas");
   document.getElementById("view-config").classList.toggle("oculto", tab!=="config");
   if(tab==="selecionar") renderSelecaoLinhas();
   if(tab==="historico") abrirHistorico();
+  if(tab==="alertas") abrirAlertas();
   if(tab==="config") renderConfig();
 }
 document.getElementById("btn-refresh").addEventListener("click", ()=>{
@@ -446,9 +507,11 @@ document.getElementById("btn-refresh").addEventListener("click", ()=>{
 async function carregarLinhas(){
   const snap = await getDocs(collection(db, "linhas"));
   linhas = snap.docs.map(d=>({id:d.id, ...d.data()}));
-  const sel = document.getElementById("filtro-linha");
-  sel.innerHTML = '<option value="">Todas as linhas</option>' +
+  linhas.sort((a,b)=> a.nome.localeCompare(b.nome, "pt-BR", {numeric:true, sensitivity:"base"}));
+  const opcoes = '<option value="">Todas as linhas</option>' +
     linhas.map(l=>`<option value="${l.id}">${l.nome}</option>`).join("");
+  document.getElementById("filtro-linha").innerHTML = opcoes;
+  document.getElementById("alerta-linha").innerHTML = opcoes;
 }
 
 // ===================== TELA: SELECIONAR LINHA =====================
@@ -463,10 +526,18 @@ async function renderSelecaoLinhas(){
     const {horario, concluido} = await proximoHorarioPendente(l);
     const card = document.createElement("div");
     card.className = "card-linha";
+    let statusHtml;
+    if(concluido){
+      statusHtml = `<div class="status concluido">✓ Ciclo concluído</div>`;
+    } else if(!horarioLiberado(horario)){
+      statusHtml = `<div class="status bloqueado">🔒 Aguarda ${horario}</div>`;
+    } else {
+      statusHtml = `<div class="status pendente">Pronta: ${horario}</div>`;
+    }
     card.innerHTML = `
       <div class="nome">${l.nome}</div>
       <div class="qtd">${l.currais.length} currais</div>
-      <div class="status ${concluido ? "concluido":"pendente"}">${concluido ? "✓ Ciclo concluído" : "Próxima: " + horario}</div>
+      ${statusHtml}
     `;
     card.addEventListener("click", ()=> abrirLeitura(l));
     grid.appendChild(card);
@@ -528,6 +599,20 @@ async function renderizarLeitura(linhaObj){
 
   document.getElementById("toggle-modo").classList.remove("oculto");
   document.getElementById("leitura-horario").textContent = horario;
+
+  if(!horarioLiberado(horario)){
+    document.getElementById("toggle-modo").classList.add("oculto");
+    cont.innerHTML = `
+      <div class="concluido-box">
+        <div class="ic">🔒</div>
+        <h3>Leitura das ${horario} ainda não liberada</h3>
+        <p>Ela libera automaticamente quando o relógio do celular chegar nesse horário. Escolha outra linha por enquanto, ou volte mais tarde.</p>
+      </div>
+      <button class="btn btn-outline" style="margin-top:14px;" id="btn-voltar-linhas">← Escolher outra linha</button>
+    `;
+    document.getElementById("btn-voltar-linhas").addEventListener("click", ()=>mostrarTab("selecionar"));
+    return;
+  }
 
   const lancadosMap = {};
   lancados.forEach(r=>lancadosMap[r.curral] = r);
@@ -612,18 +697,32 @@ async function lancar(linhaObj, horario, curral, status){
     if(snap.exists() && snap.data().status === status){
       await deleteDoc(ref);
       toast(`${linhaObj.nome}-${curral} desmarcado`);
-    } else {
-      await setDoc(ref, {
-        linhaId: linhaObj.id,
-        linhaNome: linhaObj.nome,
-        curral, horario, status,
-        data: dataOp,
-        operador: usuario.email,
-        timestamp: serverTimestamp()
-      });
-      toast(status==="cheio" ? `${linhaObj.nome}-${curral} · Cheio 👍` : `${linhaObj.nome}-${curral} · Vazio 👎`);
+      renderizarLeitura(linhaObj);
+      return;
     }
-    renderizarLeitura(linhaObj);
+
+    await setDoc(ref, {
+      linhaId: linhaObj.id,
+      linhaNome: linhaObj.nome,
+      curral, horario, status,
+      data: dataOp,
+      operador: usuario.email,
+      timestamp: serverTimestamp()
+    });
+
+    // confere se essa marcação concluiu o horário inteiro da linha
+    const qCheck = query(collection(db,"leituras"),
+      where("linhaId","==",linhaObj.id), where("data","==",dataOp), where("horario","==",horario));
+    const snapCheck = await getDocs(qCheck);
+
+    if(snapCheck.size >= linhaObj.currais.length){
+      toast(`Leitura das ${horario} da ${linhaObj.nome} concluída ✅`);
+      linhaAtual = null;
+      mostrarTab("selecionar");
+    } else {
+      toast(status==="cheio" ? `${linhaObj.nome}-${curral} · Cheio 👍` : `${linhaObj.nome}-${curral} · Vazio 👎`);
+      renderizarLeitura(linhaObj);
+    }
   }catch(e){
     toast("Erro ao salvar. Tentando novamente ao reconectar.");
   }
@@ -703,6 +802,106 @@ document.getElementById("btn-exportar-excel").addEventListener("click", ()=>{
   a.href = url; a.download = `leitura-cocho-${document.getElementById("filtro-data").value || "historico"}.csv`;
   a.click(); URL.revokeObjectURL(url);
 });
+
+// ===================== ALERTAS: VAZIO ÀS 18h/20h (admin/gestor) =====================
+function abrirAlertas(){
+  if(!document.getElementById("alerta-data-fim").value){
+    const hoje = dataOperacionalHoje();
+    const seteAtras = new Date();
+    seteAtras.setDate(seteAtras.getDate()-6);
+    document.getElementById("alerta-data-fim").value = hoje;
+    document.getElementById("alerta-data-ini").value = isoData(seteAtras);
+  }
+  carregarAlertas();
+}
+["alerta-data-ini","alerta-data-fim","alerta-linha"].forEach(id=>{
+  document.getElementById(id).addEventListener("change", carregarAlertas);
+});
+
+function carregarAlertas(){
+  if(unsubAlertas){ unsubAlertas(); unsubAlertas = null; }
+  const dataIni = document.getElementById("alerta-data-ini").value;
+  const dataFim = document.getElementById("alerta-data-fim").value;
+  const linhaId = document.getElementById("alerta-linha").value;
+
+  let condicoes = [where("horario","in",["18h","20h"]), where("status","==","vazio")];
+  if(dataIni) condicoes.push(where("data",">=",dataIni));
+  if(dataFim) condicoes.push(where("data","<=",dataFim));
+  if(linhaId) condicoes.push(where("linhaId","==",linhaId));
+
+  const q = query(collection(db,"leituras"), ...condicoes);
+  unsubAlertas = onSnapshot(q,
+    (snap)=> renderAlertas(snap.docs.map(d=>({id:d.id, ...d.data()}))),
+    (err)=>{
+      document.getElementById("alerta-lista").innerHTML =
+        `<div class="vazio-estado"><div class="ic">⚠️</div>Não foi possível carregar. Se for a primeira vez, o Firestore pode pedir para criar um índice — abra o console do navegador (F12), clique no link do erro e depois em "Criar índice".</div>`;
+    }
+  );
+}
+
+function renderAlertas(regs){
+  regs.sort((a,b)=> (b.data+b.horario).localeCompare(a.data+a.horario));
+
+  // ---- resumo ----
+  const curraisUnicos = new Set(regs.map(r=>`${r.linhaNome}-${r.curral}`));
+  const porLinha = {};
+  regs.forEach(r=>{ porLinha[r.linhaNome] = (porLinha[r.linhaNome]||0)+1; });
+  const linhaTop = Object.entries(porLinha).sort((a,b)=>b[1]-a[1])[0];
+
+  document.getElementById("alerta-resumo").innerHTML = `
+    <div class="resumo-card"><div class="n" style="color:var(--vazio-d)">${regs.length}</div><div class="l">Ocorrências</div></div>
+    <div class="resumo-card"><div class="n" style="color:var(--verde-escuro)">${curraisUnicos.size}</div><div class="l">Currais distintos</div></div>
+    <div class="resumo-card"><div class="n" style="color:var(--laranja-d); font-size:16px;">${linhaTop ? linhaTop[0] : "—"}</div><div class="l">Linha mais afetada</div></div>
+  `;
+
+  // ---- gráfico por dia ----
+  const porDia = {};
+  regs.forEach(r=>{ porDia[r.data] = (porDia[r.data]||0)+1; });
+  const dias = Object.keys(porDia).sort();
+  const max = Math.max(1, ...Object.values(porDia));
+  document.getElementById("alerta-grafico").innerHTML = dias.length ? dias.map(d=>`
+    <div class="barra-dia" title="${dataFormatada(d)}: ${porDia[d]} vazio(s)">
+      <div class="barra-fill" style="height:${(porDia[d]/max*100)}%"></div>
+      <div class="barra-num">${porDia[d]}</div>
+      <div class="barra-label">${dataFormatada(d).slice(0,5)}</div>
+    </div>
+  `).join("") : `<p style="color:var(--texto-sub); font-size:13px;">Nenhum vazio no período.</p>`;
+
+  // ---- ranking de currais recorrentes ----
+  const porCurral = {};
+  regs.forEach(r=>{
+    const chave = `${r.linhaNome}-${r.curral}`;
+    porCurral[chave] = (porCurral[chave]||0)+1;
+  });
+  const recorrentes = Object.entries(porCurral).filter(([,n])=>n>=2).sort((a,b)=>b[1]-a[1]);
+  document.getElementById("alerta-ranking").innerHTML = recorrentes.length ? recorrentes.map(([chave,n])=>`
+    <div class="linha-registro">
+      <span class="nome">${chave}</span>
+      <span class="badge-contagem">${n}x</span>
+    </div>
+  `).join("") : `<p style="color:var(--texto-sub); font-size:13px;">Nenhum curral repetiu vazio 2+ vezes no período.</p>`;
+
+  // ---- lista cronológica ----
+  const lista = document.getElementById("alerta-lista");
+  if(regs.length===0){
+    lista.innerHTML = `<div class="vazio-estado"><div class="ic">📭</div>Nenhuma ocorrência no período selecionado.</div>`;
+    return;
+  }
+  const porData = {};
+  regs.forEach(r=>{ (porData[r.data] = porData[r.data]||[]).push(r); });
+  lista.innerHTML = Object.keys(porData).sort().reverse().map(d=>{
+    const itens = porData[d].map(r=>`
+      <div class="linha-registro">
+        <div class="esq">
+          <span class="bola no"></span>
+          <span class="nome">${r.linhaNome}-${r.curral} · ${r.horario}</span>
+        </div>
+        <span class="op">${r.operador ? r.operador.split("@")[0] : ""}</span>
+      </div>
+    `).join("");
+    return `<div class="grupo-horario"><div class="titulo-grupo"><span>${dataFormatada(d)}</span><span>${porData[d].length} vazios</span></div>${itens}</div>`;
+  }).join("");
+}
 
 // ===================== CONFIG (ADMIN) =====================
 function renderConfig(){

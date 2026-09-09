@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#1A3530">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -109,21 +110,33 @@
     font-family:'Inter',sans-serif; font-weight:700; font-size:12.5px; color:var(--texto-sub);
   }
   .toggle-modo button.active{background:#fff; color:var(--verde-escuro); box-shadow:var(--sombra);}
+  .link-ordem{
+    display:block; width:100%; text-align:center; background:none; border:none; text-decoration:underline;
+    font-size:12.5px; font-weight:600; color:var(--texto-sub); padding:2px 0 16px; cursor:pointer; font-family:'Inter',sans-serif;
+  }
 
   .grade-currais{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
   .grade-cel{
     background:var(--card); border-radius:14px; padding:12px 10px; text-align:center;
     box-shadow:var(--sombra); border:2px solid transparent;
   }
-  .grade-cel-nome{font-family:'Manrope',sans-serif; font-weight:800; font-size:15px; color:var(--verde-escuro); margin-bottom:8px;}
-  .grade-cel-botoes{display:flex; gap:6px;}
-  .mini-btn{flex:1; border:none; border-radius:10px; padding:11px 4px; font-size:18px; cursor:pointer; background:#F1EFE8; opacity:1;}
+  .grade-cel-nome{font-family:'Manrope',sans-serif; font-weight:800; font-size:15px; color:var(--verde-escuro); margin-bottom:8px; display:flex; align-items:center; justify-content:center; gap:4px;}
+  .grade-cel-qtd{font-size:11px; font-weight:700; color:var(--laranja-d); margin:-4px 0 6px;}
+  .grade-cel-botoes{display:flex; gap:5px;}
+  .mini-btn{flex:1; border:none; border-radius:10px; padding:11px 3px; font-size:17px; cursor:pointer; background:#F1EFE8; opacity:1;}
   .grade-cel.cel-cheio{border-color:var(--verde-lage);}
   .grade-cel.cel-vazio{border-color:var(--vazio);}
-  .grade-cel.cel-cheio .mini-cheio{background:var(--verde-lage);}
-  .grade-cel.cel-cheio .mini-vazio{opacity:.35;}
-  .grade-cel.cel-vazio .mini-vazio{background:var(--vazio);}
-  .grade-cel.cel-vazio .mini-cheio{opacity:.35;}
+  .grade-cel.cel-warn{border-color:var(--laranja);}
+  .grade-cel.marcado .mini-btn{opacity:.35;}
+  .grade-cel.marcado .mini-btn.selecionado{opacity:1; color:#fff;}
+  .mini-btn.selecionado.mini-cheio, .mini-btn.selecionado.mini-crumbs{background:var(--verde-lage);}
+  .mini-btn.selecionado.mini-vazio, .mini-btn.selecionado.mini-dry{background:var(--vazio);}
+  .mini-btn.selecionado.mini-inventory{background:var(--laranja);}
+  .btn-obs{
+    width:100%; margin-top:7px; background:none; border:1.5px dashed var(--linha); border-radius:9px;
+    padding:6px 4px; font-size:10.5px; font-weight:600; color:var(--texto-sub); cursor:pointer;
+  }
+  .btn-obs.tem-obs{border-style:solid; border-color:var(--laranja); color:var(--laranja-d);}
 
   .barra-topo{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
   .barra-topo .titulo{font-family:'Manrope',sans-serif; font-weight:800; font-size:19px; color:var(--verde-escuro);}
@@ -140,24 +153,31 @@
   .curral-card .num{font-family:'Manrope',sans-serif; font-weight:800; font-size:52px; color:var(--verde-escuro); line-height:1.1; margin:6px 0 2px;}
 
   .botoes-marcar{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:26px;}
+  .botoes-marcar.botoes-3{grid-template-columns:1fr 1fr 1fr; gap:9px;}
   .btn-marcar{
     border:none; border-radius:18px; padding:22px 8px; font-family:'Manrope',sans-serif; font-weight:800;
     font-size:15.5px; color:#fff; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px;
   }
+  .botoes-3 .btn-marcar{padding:18px 4px; font-size:12.5px;}
   .btn-marcar .emoji{font-size:30px;}
-  .btn-vazio{background:var(--vazio);}
-  .btn-vazio:active{background:var(--vazio-d);}
-  .btn-cheio{background:var(--verde-lage);}
-  .btn-cheio:active{background:var(--verde-lage-d);}
+  .botoes-3 .btn-marcar .emoji{font-size:24px;}
+  .btn-vazio, .btn-dry{background:var(--vazio);}
+  .btn-vazio:active, .btn-dry:active{background:var(--vazio-d);}
+  .btn-cheio, .btn-crumbs{background:var(--verde-lage);}
+  .btn-cheio:active, .btn-crumbs:active{background:var(--verde-lage-d);}
+  .btn-inventory{background:var(--laranja);}
+  .btn-inventory:active{background:var(--laranja-d);}
 
   .lista-lancados{display:flex; flex-wrap:wrap; gap:8px;}
   .chip-curral{
     font-size:12.5px; font-weight:700; padding:7px 11px; border-radius:10px; font-family:'Inter',sans-serif;
-    display:flex; align-items:center; gap:5px;
+    display:flex; align-items:center; gap:5px; cursor:pointer; border:1.5px solid transparent;
   }
   .chip-curral.ok{background:#E1F0EB; color:var(--verde-lage-d);}
   .chip-curral.no{background:#F6E1DE; color:var(--vazio-d);}
-  .chip-curral button{background:none; border:none; font-size:12px; color:inherit; cursor:pointer; opacity:.6; padding:0 0 0 2px;}
+  .chip-curral.warn{background:#FDECD8; color:var(--laranja-d);}
+  .chip-curral.tem-obs{border-color:currentColor;}
+  .dica-obs{font-size:11.5px; color:var(--texto-sub); margin-top:8px;}
 
   .concluido-box{
     background:var(--card); border-radius:22px; padding:38px 24px; text-align:center; box-shadow:var(--sombra);
@@ -182,10 +202,12 @@
     background:var(--card); border-radius:13px; padding:10px 14px; display:flex; align-items:center;
     justify-content:space-between; margin-bottom:7px; box-shadow:var(--sombra);
   }
-  .linha-registro .esq{display:flex; align-items:center; gap:10px;}
-  .linha-registro .bola{width:9px; height:9px; border-radius:50%;}
+  .linha-registro .esq{display:flex; align-items:flex-start; gap:10px;}
+  .linha-registro .bola{width:9px; height:9px; border-radius:50%; margin-top:3px; flex-shrink:0;}
   .bola.ok{background:var(--verde-lage);}
   .bola.no{background:var(--vazio);}
+  .bola.warn{background:var(--laranja);}
+  .obs-hist{font-size:11px; color:var(--texto-sub); margin-top:2px; max-width:220px;}
   .linha-registro .nome{font-weight:600; font-size:13.5px;}
   .linha-registro .op{font-size:11px; color:var(--texto-sub);}
   .vazio-estado{text-align:center; padding:50px 20px; color:var(--texto-sub);}
@@ -273,6 +295,7 @@
           <button data-modo="sequencial">Curral por curral</button>
           <button data-modo="grade">Linha completa</button>
         </div>
+        <button class="link-ordem" id="btn-inverter-ordem">🔀 Começar do último curral</button>
         <div id="leitura-conteudo"></div>
       </section>
 
@@ -288,6 +311,7 @@
             <option value="20h">20h</option>
             <option value="00h">00h</option>
             <option value="03h">03h</option>
+            <option value="06h">06h</option>
           </select>
         </div>
         <div class="resumo-dia" id="resumo-dia"></div>
@@ -389,7 +413,7 @@ const db = getFirestore(fbApp);
 try { enableIndexedDbPersistence(db); } catch(e) { /* já habilitado ou navegador não suporta */ }
 
 // ===================== CONSTANTES =====================
-const HORARIOS = ["18h","20h","00h","03h"];
+const HORARIOS = ["18h","20h","00h","03h","06h"];
 let usuario = null;
 let papel = "operador"; // 'operador' | 'admin'
 let linhas = [];         // [{id, nome, currais:[...]}]
@@ -410,7 +434,7 @@ function toast(msg){
 function dataOperacionalHoje(){
   const agora = new Date();
   const d = new Date(agora);
-  if (agora.getHours() < 4) d.setDate(d.getDate() - 1);
+  if (agora.getHours() < 7) d.setDate(d.getDate() - 1);
   return isoData(d);
 }
 function isoData(d){
@@ -423,15 +447,15 @@ function dataFormatada(iso){
 }
 
 // quantos minutos já se passaram desde o início do ciclo (18h) até agora
-// retorna -1 se estivermos fora da janela do ciclo (dia, antes das 18h)
+// retorna -1 se estivermos fora da janela do ciclo (dia, entre 07h e 18h)
 function minutosDesdeInicioCiclo(){
   const agora = new Date();
   const h = agora.getHours(), m = agora.getMinutes();
   if(h>=18) return (h-18)*60+m;
-  if(h<4) return (h+24-18)*60+m;
+  if(h<7) return (h+24-18)*60+m;
   return -1;
 }
-const HORARIO_MINUTOS = {"18h":0, "20h":120, "00h":360, "03h":540};
+const HORARIO_MINUTOS = {"18h":0, "20h":120, "00h":360, "03h":540, "06h":720};
 
 // diz se já deu a hora real do celular para liberar esse horário
 function horarioLiberado(horario){
@@ -570,6 +594,20 @@ document.querySelectorAll(".toggle-modo button").forEach(b=>{
   });
 });
 
+// ordem de percurso da linha — normal (primeiro → último) ou invertida (último → primeiro)
+let ordemInvertida = localStorage.getItem("ordemInvertidaCocho") === "1";
+function atualizarTextoOrdem(){
+  document.getElementById("btn-inverter-ordem").textContent =
+    ordemInvertida ? "🔀 Começar do primeiro curral" : "🔀 Começar do último curral";
+}
+atualizarTextoOrdem();
+document.getElementById("btn-inverter-ordem").addEventListener("click", ()=>{
+  ordemInvertida = !ordemInvertida;
+  localStorage.setItem("ordemInvertidaCocho", ordemInvertida ? "1" : "0");
+  atualizarTextoOrdem();
+  if(linhaAtual) renderizarLeitura(linhaAtual);
+});
+
 async function abrirLeitura(linhaObj){
   linhaAtual = linhaObj;
   document.getElementById("view-selecionar").classList.add("oculto");
@@ -585,11 +623,12 @@ async function renderizarLeitura(linhaObj){
   if(concluido){
     document.getElementById("leitura-horario").textContent = "—";
     document.getElementById("toggle-modo").classList.add("oculto");
+    document.getElementById("btn-inverter-ordem").classList.add("oculto");
     cont.innerHTML = `
       <div class="concluido-box">
         <div class="ic">✅</div>
         <h3>Ciclo do dia concluído</h3>
-        <p>Todas as leituras (18h, 20h, 00h e 03h) desta linha já foram lançadas.<br>Nova leitura abre às 18h.</p>
+        <p>Todas as leituras (18h, 20h, 00h, 03h e 06h) desta linha já foram lançadas.<br>Nova leitura abre às 18h.</p>
       </div>
       <button class="btn btn-outline" style="margin-top:14px;" id="btn-voltar-linhas">← Voltar</button>
     `;
@@ -598,10 +637,12 @@ async function renderizarLeitura(linhaObj){
   }
 
   document.getElementById("toggle-modo").classList.remove("oculto");
+  document.getElementById("btn-inverter-ordem").classList.remove("oculto");
   document.getElementById("leitura-horario").textContent = horario;
 
   if(!horarioLiberado(horario)){
     document.getElementById("toggle-modo").classList.add("oculto");
+    document.getElementById("btn-inverter-ordem").classList.add("oculto");
     cont.innerHTML = `
       <div class="concluido-box">
         <div class="ic">🔒</div>
@@ -618,25 +659,54 @@ async function renderizarLeitura(linhaObj){
   lancados.forEach(r=>lancadosMap[r.curral] = r);
   const total = linhaObj.currais.length;
   const feitos = Object.keys(lancadosMap).length;
+  const currais = ordemInvertida ? [...linhaObj.currais].reverse() : linhaObj.currais;
 
   if(modoVisual === "grade"){
-    renderGrade(linhaObj, horario, lancadosMap, total, feitos, cont);
+    renderGrade(linhaObj, horario, lancadosMap, total, feitos, cont, currais);
   } else {
-    renderSequencial(linhaObj, horario, lancadosMap, total, feitos, cont);
+    renderSequencial(linhaObj, horario, lancadosMap, total, feitos, cont, currais);
   }
 }
 
-// ---- modo curral por curral ----
-function renderSequencial(linhaObj, horario, lancadosMap, total, feitos, cont){
-  const restantes = linhaObj.currais.filter(c=>!lancadosMap[c]);
-  const curralAtual = restantes[0];
+// devolve emoji/texto/cor de exibição pra cada combinação horário+status
+function rotuloStatus(horario, status){
+  if(horario === "06h"){
+    if(status==="crumbs")    return {emoji:"👌", texto:"Crumbs", cor:"ok"};
+    if(status==="dry")       return {emoji:"🏜️", texto:"Dry", cor:"no"};
+    if(status==="inventory") return {emoji:"📦", texto:"Inventory", cor:"warn"};
+  }
+  if(status==="cheio") return {emoji:"👍", texto:"Cheio", cor:"ok"};
+  if(status==="vazio") return {emoji:"👎", texto:"Vazio", cor:"no"};
+  return {emoji:"❔", texto:status, cor:""};
+}
 
-  const chips = linhaObj.currais.map(c=>{
+// ---- modo curral por curral ----
+function renderSequencial(linhaObj, horario, lancadosMap, total, feitos, cont, currais){
+  const restantes = currais.filter(c=>!lancadosMap[c]);
+  const curralAtual = restantes[0];
+  const seis = horario === "06h";
+
+  const chips = currais.map(c=>{
     const reg = lancadosMap[c];
     if(!reg) return "";
-    const ok = reg.status === "cheio";
-    return `<span class="chip-curral ${ok?"ok":"no"}">${ok?"👍":"👎"} ${linhaObj.nome}-${c}</span>`;
+    const r = rotuloStatus(horario, reg.status);
+    const qtd = reg.status==="inventory" && reg.quantidade!=null ? ` · ${reg.quantidade}kg` : "";
+    const obsIcon = reg.observacao ? " 📝" : "";
+    return `<span class="chip-curral ${r.cor} ${reg.observacao?"tem-obs":""}" data-curral="${c}">${r.emoji} ${linhaObj.nome}-${c}${qtd}${obsIcon}</span>`;
   }).join("");
+
+  const botoesHtml = seis ? `
+    <div class="botoes-marcar botoes-3">
+      <button class="btn-marcar btn-dry" id="btn-dry"><span class="emoji">🏜️</span>Dry</button>
+      <button class="btn-marcar btn-crumbs" id="btn-crumbs"><span class="emoji">👌</span>Crumbs</button>
+      <button class="btn-marcar btn-inventory" id="btn-inventory"><span class="emoji">📦</span>Inventory</button>
+    </div>
+  ` : `
+    <div class="botoes-marcar">
+      <button class="btn-marcar btn-vazio" id="btn-vazio"><span class="emoji">👎</span>Vazio</button>
+      <button class="btn-marcar btn-cheio" id="btn-cheio"><span class="emoji">👍</span>Cheio</button>
+    </div>
+  `;
 
   cont.innerHTML = `
     <div class="progresso-wrap"><div class="progresso-fill" style="width:${(feitos/total*100)}%"></div></div>
@@ -645,31 +715,56 @@ function renderSequencial(linhaObj, horario, lancadosMap, total, feitos, cont){
       <div class="eyebrow">Curral atual</div>
       <div class="num">${linhaObj.nome}-${curralAtual}</div>
     </div>
-    <div class="botoes-marcar">
-      <button class="btn-marcar btn-vazio" id="btn-vazio"><span class="emoji">👎</span>Vazio</button>
-      <button class="btn-marcar btn-cheio" id="btn-cheio"><span class="emoji">👍</span>Cheio</button>
-    </div>
-    ${chips ? `<div class="lista-lancados">${chips}</div>` : ""}
+    ${botoesHtml}
+    ${chips ? `<div class="lista-lancados">${chips}</div><p class="dica-obs">Toque em um curral já lançado para adicionar observação</p>` : ""}
     <button class="btn btn-outline" style="margin-top:20px;" id="btn-voltar-linhas">← Trocar de linha</button>
   `;
 
-  document.getElementById("btn-cheio").addEventListener("click", ()=>lancar(linhaObj, horario, curralAtual, "cheio"));
-  document.getElementById("btn-vazio").addEventListener("click", ()=>lancar(linhaObj, horario, curralAtual, "vazio"));
+  if(seis){
+    document.getElementById("btn-crumbs").addEventListener("click", ()=>lancar(linhaObj, horario, curralAtual, "crumbs"));
+    document.getElementById("btn-dry").addEventListener("click", ()=>lancar(linhaObj, horario, curralAtual, "dry"));
+    document.getElementById("btn-inventory").addEventListener("click", ()=>lancarInventory(linhaObj, horario, curralAtual));
+  } else {
+    document.getElementById("btn-cheio").addEventListener("click", ()=>lancar(linhaObj, horario, curralAtual, "cheio"));
+    document.getElementById("btn-vazio").addEventListener("click", ()=>lancar(linhaObj, horario, curralAtual, "vazio"));
+  }
+  cont.querySelectorAll(".chip-curral").forEach(chip=>{
+    chip.addEventListener("click", ()=> editarObservacao(linhaObj, horario, chip.dataset.curral));
+  });
   document.getElementById("btn-voltar-linhas").addEventListener("click", ()=>mostrarTab("selecionar"));
 }
 
 // ---- modo linha completa (grade com todos os currais) ----
-function renderGrade(linhaObj, horario, lancadosMap, total, feitos, cont){
-  const celulas = linhaObj.currais.map(c=>{
+function renderGrade(linhaObj, horario, lancadosMap, total, feitos, cont, currais){
+  const seis = horario === "06h";
+
+  const celulas = currais.map(c=>{
     const reg = lancadosMap[c];
     const status = reg ? reg.status : null;
+    const r = status ? rotuloStatus(horario, status) : null;
+    const classeCel = r ? (r.cor==="ok" ? "cel-cheio" : r.cor==="no" ? "cel-vazio" : "cel-warn") : "";
+    const qtdTxt = status==="inventory" && reg.quantidade!=null ? `<div class="grade-cel-qtd">${reg.quantidade}kg</div>` : "";
+    const obsMark = reg && reg.observacao ? "📝" : "";
+
+    const botoes = seis ? `
+      <div class="grade-cel-botoes botoes-3">
+        <button class="mini-btn mini-dry ${status==='dry'?'selecionado':''}" data-curral="${c}" data-status="dry">🏜️</button>
+        <button class="mini-btn mini-crumbs ${status==='crumbs'?'selecionado':''}" data-curral="${c}" data-status="crumbs">👌</button>
+        <button class="mini-btn mini-inventory ${status==='inventory'?'selecionado':''}" data-curral="${c}" data-status="inventory">📦</button>
+      </div>
+    ` : `
+      <div class="grade-cel-botoes">
+        <button class="mini-btn mini-vazio ${status==='vazio'?'selecionado':''}" data-curral="${c}" data-status="vazio">👎</button>
+        <button class="mini-btn mini-cheio ${status==='cheio'?'selecionado':''}" data-curral="${c}" data-status="cheio">👍</button>
+      </div>
+    `;
+
     return `
-      <div class="grade-cel ${status==="cheio"?"cel-cheio":status==="vazio"?"cel-vazio":""}">
-        <div class="grade-cel-nome">${linhaObj.nome}-${c}</div>
-        <div class="grade-cel-botoes">
-          <button class="mini-btn mini-vazio" data-curral="${c}" data-status="vazio">👎</button>
-          <button class="mini-btn mini-cheio" data-curral="${c}" data-status="cheio">👍</button>
-        </div>
+      <div class="grade-cel ${classeCel} ${status?"marcado":""}">
+        <div class="grade-cel-nome">${linhaObj.nome}-${c} ${obsMark}</div>
+        ${qtdTxt}
+        ${botoes}
+        <button class="btn-obs ${reg && reg.observacao ? "tem-obs":""}" data-curral="${c}">📝 nota</button>
       </div>
     `;
   }).join("");
@@ -682,7 +777,13 @@ function renderGrade(linhaObj, horario, lancadosMap, total, feitos, cont){
   `;
 
   cont.querySelectorAll(".mini-btn").forEach(b=>{
-    b.addEventListener("click", ()=> lancar(linhaObj, horario, b.dataset.curral, b.dataset.status));
+    b.addEventListener("click", ()=>{
+      if(b.dataset.status === "inventory") lancarInventory(linhaObj, horario, b.dataset.curral);
+      else lancar(linhaObj, horario, b.dataset.curral, b.dataset.status);
+    });
+  });
+  cont.querySelectorAll(".btn-obs").forEach(b=>{
+    b.addEventListener("click", ()=> editarObservacao(linhaObj, horario, b.dataset.curral));
   });
   document.getElementById("btn-voltar-linhas").addEventListener("click", ()=>mostrarTab("selecionar"));
 }
@@ -701,10 +802,14 @@ async function lancar(linhaObj, horario, curral, status){
       return;
     }
 
+    // preserva observação já existente, se houver, ao trocar o status
+    const observacaoAtual = snap.exists() ? (snap.data().observacao || "") : "";
+
     await setDoc(ref, {
       linhaId: linhaObj.id,
       linhaNome: linhaObj.nome,
       curral, horario, status,
+      observacao: observacaoAtual,
       data: dataOp,
       operador: usuario.email,
       timestamp: serverTimestamp()
@@ -714,17 +819,96 @@ async function lancar(linhaObj, horario, curral, status){
     const qCheck = query(collection(db,"leituras"),
       where("linhaId","==",linhaObj.id), where("data","==",dataOp), where("horario","==",horario));
     const snapCheck = await getDocs(qCheck);
+    const r = rotuloStatus(horario, status);
 
     if(snapCheck.size >= linhaObj.currais.length){
       toast(`Leitura das ${horario} da ${linhaObj.nome} concluída ✅`);
       linhaAtual = null;
       mostrarTab("selecionar");
     } else {
-      toast(status==="cheio" ? `${linhaObj.nome}-${curral} · Cheio 👍` : `${linhaObj.nome}-${curral} · Vazio 👎`);
+      toast(`${linhaObj.nome}-${curral} · ${r.texto} ${r.emoji}`);
       renderizarLeitura(linhaObj);
     }
   }catch(e){
     toast("Erro ao salvar. Tentando novamente ao reconectar.");
+  }
+}
+
+// fluxo específico da opção "Inventory" (06h) — pede a quantidade sobrando
+async function lancarInventory(linhaObj, horario, curral){
+  const dataOp = dataOperacionalHoje();
+  const docId = `${linhaObj.id}_${dataOp}_${horario}_${curral}`;
+  const ref = doc(db, "leituras", docId);
+  const snap = await getDoc(ref);
+  const valorAtual = snap.exists() && snap.data().status === "inventory" ? snap.data().quantidade : "";
+
+  const entrada = prompt(`Quantidade sobrando em ${linhaObj.nome}-${curral} (kg).\nDeixe em branco para remover.`, valorAtual === "" ? "" : String(valorAtual));
+  if(entrada === null) return; // cancelou
+
+  const texto = entrada.trim();
+  if(texto === ""){
+    if(snap.exists() && snap.data().status === "inventory"){
+      await deleteDoc(ref);
+      toast(`${linhaObj.nome}-${curral} desmarcado`);
+      renderizarLeitura(linhaObj);
+    }
+    return;
+  }
+
+  const quantidade = parseFloat(texto.replace(",", "."));
+  if(isNaN(quantidade) || quantidade < 0){
+    toast("Quantidade inválida.");
+    return;
+  }
+
+  try{
+    const observacaoAtual = snap.exists() ? (snap.data().observacao || "") : "";
+    await setDoc(ref, {
+      linhaId: linhaObj.id,
+      linhaNome: linhaObj.nome,
+      curral, horario, status: "inventory", quantidade,
+      observacao: observacaoAtual,
+      data: dataOp,
+      operador: usuario.email,
+      timestamp: serverTimestamp()
+    });
+
+    const qCheck = query(collection(db,"leituras"),
+      where("linhaId","==",linhaObj.id), where("data","==",dataOp), where("horario","==",horario));
+    const snapCheck = await getDocs(qCheck);
+
+    if(snapCheck.size >= linhaObj.currais.length){
+      toast(`Leitura das ${horario} da ${linhaObj.nome} concluída ✅`);
+      linhaAtual = null;
+      mostrarTab("selecionar");
+    } else {
+      toast(`${linhaObj.nome}-${curral} · Inventory 📦 ${quantidade}kg`);
+      renderizarLeitura(linhaObj);
+    }
+  }catch(e){
+    toast("Erro ao salvar. Tentando novamente ao reconectar.");
+  }
+}
+
+// adiciona/edita/remove a observação de uma leitura já lançada
+async function editarObservacao(linhaObj, horario, curral){
+  const dataOp = dataOperacionalHoje();
+  const docId = `${linhaObj.id}_${dataOp}_${horario}_${curral}`;
+  const ref = doc(db, "leituras", docId);
+  const snap = await getDoc(ref);
+  if(!snap.exists()){
+    toast("Lance a leitura desse curral antes de adicionar observação.");
+    return;
+  }
+  const atual = snap.data().observacao || "";
+  const nova = prompt(`Observação para ${linhaObj.nome}-${curral}:`, atual);
+  if(nova === null) return; // cancelou
+  try{
+    await setDoc(ref, { observacao: nova.trim() }, {merge:true});
+    toast(nova.trim() ? "Observação salva 📝" : "Observação removida");
+    renderizarLeitura(linhaObj);
+  }catch(e){
+    toast("Erro ao salvar observação.");
   }
 }
 
@@ -752,13 +936,14 @@ async function carregarHistorico(){
   let regs = snap.docs.map(d=>({id:d.id, ...d.data()}));
   regs.sort((a,b)=> (a.horario+a.curral).localeCompare(b.horario+b.curral));
 
-  // resumo
-  const totalCheio = regs.filter(r=>r.status==="cheio").length;
-  const totalVazio = regs.filter(r=>r.status==="vazio").length;
+  // resumo (ok = cheio/crumbs, no = vazio/dry, warn = inventory)
+  const totalOk = regs.filter(r=>rotuloStatus(r.horario, r.status).cor==="ok").length;
+  const totalNo = regs.filter(r=>rotuloStatus(r.horario, r.status).cor==="no").length;
+  const totalWarn = regs.filter(r=>rotuloStatus(r.horario, r.status).cor==="warn").length;
   document.getElementById("resumo-dia").innerHTML = `
-    <div class="resumo-card"><div class="n" style="color:var(--verde-lage-d)">${totalCheio}</div><div class="l">Cheio</div></div>
-    <div class="resumo-card"><div class="n" style="color:var(--vazio-d)">${totalVazio}</div><div class="l">Vazio</div></div>
-    <div class="resumo-card"><div class="n" style="color:var(--verde-escuro)">${regs.length}</div><div class="l">Total</div></div>
+    <div class="resumo-card"><div class="n" style="color:var(--verde-lage-d)">${totalOk}</div><div class="l">Cheio/Crumbs</div></div>
+    <div class="resumo-card"><div class="n" style="color:var(--vazio-d)">${totalNo}</div><div class="l">Vazio/Dry</div></div>
+    <div class="resumo-card"><div class="n" style="color:var(--laranja-d)">${totalWarn}</div><div class="l">Inventory</div></div>
   `;
 
   const lista = document.getElementById("lista-historico");
@@ -774,15 +959,22 @@ async function carregarHistorico(){
   });
 
   lista.innerHTML = HORARIOS.filter(h=>porHorario[h]).map(h=>{
-    const itens = porHorario[h].map(r=>`
+    const itens = porHorario[h].map(r=>{
+      const rt = rotuloStatus(r.horario, r.status);
+      const qtdTxt = r.status==="inventory" && r.quantidade!=null ? ` · ${r.quantidade}kg` : "";
+      const obsTxt = r.observacao ? `<div class="obs-hist">📝 ${r.observacao}</div>` : "";
+      return `
       <div class="linha-registro">
         <div class="esq">
-          <span class="bola ${r.status==='cheio'?'ok':'no'}"></span>
-          <span class="nome">${r.linhaNome}-${r.curral}</span>
+          <span class="bola ${rt.cor}"></span>
+          <div>
+            <span class="nome">${r.linhaNome}-${r.curral} · ${rt.texto}${qtdTxt}</span>
+            ${obsTxt}
+          </div>
         </div>
         <span class="op">${r.operador ? r.operador.split("@")[0] : ""}</span>
       </div>
-    `).join("");
+    `;}).join("");
     return `<div class="grupo-horario"><div class="titulo-grupo"><span>${h}</span><span>${porHorario[h].length} lançados</span></div>${itens}</div>`;
   }).join("");
 
@@ -792,9 +984,12 @@ async function carregarHistorico(){
 document.getElementById("btn-exportar-excel").addEventListener("click", ()=>{
   const regs = window._historicoAtual || [];
   if(regs.length===0){ toast("Nada para exportar."); return; }
-  let csv = "Data,Horário,Linha,Curral,Status,Operador\n";
+  let csv = "Data,Horário,Linha,Curral,Status,Quantidade(kg),Observação,Operador\n";
   regs.forEach(r=>{
-    csv += `${r.data},${r.horario},${r.linhaNome},${r.curral},${r.status==='cheio'?'Cheio':'Vazio'},${r.operador||''}\n`;
+    const rt = rotuloStatus(r.horario, r.status);
+    const qtd = r.status==="inventory" && r.quantidade!=null ? r.quantidade : "";
+    const obs = (r.observacao||"").replace(/"/g,"'").replace(/\n/g," ");
+    csv += `${r.data},${r.horario},${r.linhaNome},${r.curral},${rt.texto},${qtd},"${obs}",${r.operador||''}\n`;
   });
   const blob = new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8;"});
   const url = URL.createObjectURL(blob);

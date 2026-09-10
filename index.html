@@ -1066,30 +1066,82 @@ function gerarPdfHistorico(regs){
     pdf.text(k.label, x + kpiW/2, kpiY + 40, { align: "center" });
   });
 
-  // ---- tabela ----
-  regs.sort((a,b)=> (a.data+a.horario+a.curral).localeCompare(b.data+b.horario+b.curral));
-  const linhasTabela = regs.map(r=>{
-    const rt = rotuloStatus(r.horario, r.status);
-    const qtd = r.status==="inventory" && r.quantidade!=null ? `${r.quantidade}kg` : "—";
-    return [
-      dataFormatada(r.data), r.horario, `${r.linhaNome}-${r.curral}`,
-      `${rt.emoji} ${rt.texto}`, qtd, r.observacao || "—",
-      r.operador ? r.operador.split("@")[0] : "—"
+  // ---- tabela pivotada: 1 linha por curral (por data), 1 coluna por horário ----
+  const porChave = {};
+  regs.forEach(r=>{
+    const chave = `${r.data}|${r.linhaNome}|${r.curral}`;
+    if(!porChave[chave]) porChave[chave] = { data: r.data, linha: r.linhaNome, curral: r.curral };
+    porChave[chave][r.horario] = r;
+  });
+  const linhasOrdenadas = Object.values(porChave).sort((a,b)=>{
+    if(a.data !== b.data) return a.data.localeCompare(b.data);
+    if(a.linha !== b.linha) return a.linha.localeCompare(b.linha, "pt-BR", {numeric:true});
+    return String(a.curral).localeCompare(String(b.curral), "pt-BR", {numeric:true});
+  });
+  const multiData = new Set(regs.map(r=>r.data)).size > 1;
+
+  // devolve o conteúdo + cor da célula de um horário (sem emoji — jsPDF não desenha emoji)
+  function celula(reg){
+    if(!reg) return { content: "—", styles: { textColor: [190, 190, 184] } };
+    const rt = rotuloStatus(reg.horario, reg.status);
+    const cor = rt.cor==="ok" ? VERDE_LAGE : rt.cor==="no" ? VAZIO : LARANJA;
+    let texto = rt.texto;
+    if(reg.status==="inventory" && reg.quantidade!=null) texto += ` ${reg.quantidade}kg`;
+    if(reg.observacao) texto += " *";
+    return { content: texto, styles: { textColor: cor, fontStyle: "bold" } };
+  }
+
+  const corpoTabela = linhasOrdenadas.map(l=>{
+    const linha = [
+      dataFormatada(l.data),
+      `${l.linha}-${l.curral}`,
+      celula(l["18h"]), celula(l["20h"]), celula(l["00h"]), celula(l["03h"]), celula(l["06h"])
     ];
+    return multiData ? linha : linha.slice(1);
   });
 
   pdf.autoTable({
     startY: kpiY + 66,
-    head: [["Data","Horário","Curral","Status","Qtd","Observação","Operador"]],
-    body: linhasTabela,
-    theme: "striped",
-    styles: { font: "helvetica", cellPadding: 5 },
+    head: [ multiData
+      ? ["Data","Curral","18h","20h","00h","03h","06h"]
+      : ["Curral","18h","20h","00h","03h","06h"] ],
+    body: corpoTabela,
+    theme: "grid",
+    styles: { font: "helvetica", cellPadding: 5, halign: "center", lineColor: [231, 227, 216], lineWidth: 0.6 },
     headStyles: { fillColor: VERDE_ESCURO, textColor: 255, fontStyle: "bold", fontSize: 9 },
     bodyStyles: { fontSize: 8.5, textColor: [31, 42, 40] },
     alternateRowStyles: { fillColor: [247, 245, 240] },
-    margin: { left: margem, right: margem },
-    columnStyles: { 5: { cellWidth: 150 } }
+    columnStyles: multiData
+      ? { 0: { halign: "left" }, 1: { halign: "left", fontStyle: "bold" } }
+      : { 0: { halign: "left", fontStyle: "bold" } },
+    margin: { left: margem, right: margem }
   });
+
+  // ---- observações (marcadas com * na tabela) ----
+  const comObs = regs.filter(r=>r.observacao);
+  let y = pdf.lastAutoTable.finalY + 22;
+  if(comObs.length){
+    const alturaPagina = pdf.internal.pageSize.getHeight();
+    if(y > alturaPagina - 80){ pdf.addPage(); y = 40; }
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(10.5);
+    pdf.setTextColor(...VERDE_ESCURO);
+    pdf.text("Observações (*)", margem, y);
+    y += 16;
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8.5);
+    pdf.setTextColor(60, 60, 58);
+    comObs.sort((a,b)=> (a.data+a.horario+a.curral).localeCompare(b.data+b.horario+b.curral));
+    comObs.forEach(r=>{
+      const texto = `${dataFormatada(r.data)} · ${r.linhaNome}-${r.curral} · ${r.horario}: ${r.observacao}`;
+      const linhasQuebradas = pdf.splitTextToSize(texto, W - margem*2);
+      linhasQuebradas.forEach(t=>{
+        if(y > alturaPagina - 40){ pdf.addPage(); y = 40; }
+        pdf.text(t, margem, y);
+        y += 12;
+      });
+    });
+  }
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(8);

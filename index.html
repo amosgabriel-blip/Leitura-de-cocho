@@ -315,7 +315,10 @@
           </select>
         </div>
         <div class="resumo-dia" id="resumo-dia"></div>
-        <button class="btn btn-outline btn-exportar" id="btn-exportar-excel">⭳ Exportar para Excel</button>
+        <div class="row-2">
+          <button class="btn btn-outline btn-exportar" id="btn-exportar-excel">⭳ Excel</button>
+          <button class="btn btn-outline btn-exportar" id="btn-exportar-pdf">📄 PDF</button>
+        </div>
         <div id="lista-historico" style="margin-top:18px;"></div>
       </section>
 
@@ -387,6 +390,8 @@
   <div class="toast" id="toast"></div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
@@ -997,6 +1002,102 @@ document.getElementById("btn-exportar-excel").addEventListener("click", ()=>{
   a.href = url; a.download = `leitura-cocho-${document.getElementById("filtro-data").value || "historico"}.csv`;
   a.click(); URL.revokeObjectURL(url);
 });
+
+document.getElementById("btn-exportar-pdf").addEventListener("click", ()=>{
+  const regs = (window._historicoAtual || []).slice();
+  if(regs.length===0){ toast("Nada para gerar PDF."); return; }
+  if(!window.jspdf){ toast("PDF ainda carregando, tente de novo em instantes."); return; }
+  gerarPdfHistorico(regs);
+});
+
+function gerarPdfHistorico(regs){
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: "pt", format: "a4" });
+  const W = pdf.internal.pageSize.getWidth();
+
+  const VERDE_ESCURO = [26, 53, 48];
+  const LARANJA = [249, 115, 22];
+  const VERDE_LAGE = [38, 138, 117];
+  const VAZIO = [179, 56, 44];
+  const CINZA_TXT = [92, 107, 103];
+
+  const dataFiltro = document.getElementById("filtro-data").value;
+  const selLinha = document.getElementById("filtro-linha");
+  const linhaTxt = selLinha.value ? selLinha.options[selLinha.selectedIndex].text : "Todas as linhas";
+  const horarioTxt = document.getElementById("filtro-horario").value || "Todos os horários";
+
+  // ---- cabeçalho ----
+  pdf.setFillColor(...VERDE_ESCURO);
+  pdf.rect(0, 0, W, 78, "F");
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(17);
+  pdf.text("Leitura de Cocho", 32, 32);
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(10);
+  pdf.setTextColor(220, 224, 220);
+  pdf.text(`${dataFiltro ? dataFormatada(dataFiltro) : "Todas as datas"}  ·  ${linhaTxt}  ·  ${horarioTxt}`, 32, 50);
+  pdf.text(`Gerado em ${new Date().toLocaleString("pt-BR")}`, 32, 64);
+
+  // ---- cartões de KPI ----
+  const totalOk = regs.filter(r=>rotuloStatus(r.horario, r.status).cor==="ok").length;
+  const totalNo = regs.filter(r=>rotuloStatus(r.horario, r.status).cor==="no").length;
+  const totalWarn = regs.filter(r=>rotuloStatus(r.horario, r.status).cor==="warn").length;
+  const kpis = [
+    { label: "Cheio / Crumbs", valor: totalOk, cor: VERDE_LAGE },
+    { label: "Vazio / Dry",    valor: totalNo, cor: VAZIO },
+    { label: "Inventory",      valor: totalWarn, cor: LARANJA },
+    { label: "Total",          valor: regs.length, cor: VERDE_ESCURO }
+  ];
+  const kpiY = 96, margem = 32, gap = 10;
+  const kpiW = (W - margem*2 - gap*3) / 4;
+  kpis.forEach((k, i)=>{
+    const x = margem + i*(kpiW+gap);
+    pdf.setDrawColor(...k.cor);
+    pdf.setLineWidth(1.1);
+    pdf.roundedRect(x, kpiY, kpiW, 50, 6, 6, "S");
+    pdf.setTextColor(...k.cor);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(19);
+    pdf.text(String(k.valor), x + kpiW/2, kpiY + 26, { align: "center" });
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(7.5);
+    pdf.setTextColor(...CINZA_TXT);
+    pdf.text(k.label, x + kpiW/2, kpiY + 40, { align: "center" });
+  });
+
+  // ---- tabela ----
+  regs.sort((a,b)=> (a.data+a.horario+a.curral).localeCompare(b.data+b.horario+b.curral));
+  const linhasTabela = regs.map(r=>{
+    const rt = rotuloStatus(r.horario, r.status);
+    const qtd = r.status==="inventory" && r.quantidade!=null ? `${r.quantidade}kg` : "—";
+    return [
+      dataFormatada(r.data), r.horario, `${r.linhaNome}-${r.curral}`,
+      `${rt.emoji} ${rt.texto}`, qtd, r.observacao || "—",
+      r.operador ? r.operador.split("@")[0] : "—"
+    ];
+  });
+
+  pdf.autoTable({
+    startY: kpiY + 66,
+    head: [["Data","Horário","Curral","Status","Qtd","Observação","Operador"]],
+    body: linhasTabela,
+    theme: "striped",
+    styles: { font: "helvetica", cellPadding: 5 },
+    headStyles: { fillColor: VERDE_ESCURO, textColor: 255, fontStyle: "bold", fontSize: 9 },
+    bodyStyles: { fontSize: 8.5, textColor: [31, 42, 40] },
+    alternateRowStyles: { fillColor: [247, 245, 240] },
+    margin: { left: margem, right: margem },
+    columnStyles: { 5: { cellWidth: 150 } }
+  });
+
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(8);
+  pdf.setTextColor(...CINZA_TXT);
+  pdf.text("Leitura de Cocho · O.L", margem, pdf.internal.pageSize.getHeight() - 20);
+
+  pdf.save(`leitura-cocho-${dataFiltro || "historico"}.pdf`);
+}
 
 // ===================== ALERTAS: VAZIO ÀS 18h/20h (admin/gestor) =====================
 function abrirAlertas(){

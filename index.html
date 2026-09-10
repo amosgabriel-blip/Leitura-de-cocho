@@ -398,7 +398,8 @@ import {
   getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
-  getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc, deleteDoc,
+  getFirestore, collection, doc, getDoc, getDocs, getDocFromCache, getDocsFromCache,
+  addDoc, setDoc, deleteDoc,
   query, where, orderBy, onSnapshot, serverTimestamp, enableIndexedDbPersistence
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
@@ -423,6 +424,7 @@ let usuario = null;
 let papel = "operador"; // 'operador' | 'admin'
 let linhas = [];         // [{id, nome, currais:[...]}]
 let linhaAtual = null;
+let horarioAberto = null;
 let leiturasHoje = [];   // leituras já salvas do dia/linha/horario atual
 let editandoLinhaId = null;
 let unsubHistorico = null;
@@ -488,11 +490,17 @@ document.getElementById("link-sair-btn")?.addEventListener("click", ()=>signOut(
 onAuthStateChanged(auth, async (user)=>{
   if(user){
     usuario = user;
-    // busca papel do usuário em /usuarios/{uid} — se não existir, assume operador
+    // busca papel do usuário em /usuarios/{uid} — tenta cache local primeiro (instantâneo, funciona offline)
     try{
-      const snap = await getDoc(doc(db, "usuarios", user.uid));
+      const snap = await getDocFromCache(doc(db, "usuarios", user.uid));
       papel = snap.exists() ? (snap.data().papel || "operador") : "operador";
-    }catch(e){ papel = "operador"; }
+    }catch(e){
+      // não está no cache — tenta rede, mas sem travar a entrada no app se falhar
+      try{
+        const snap = await getDoc(doc(db, "usuarios", user.uid));
+        papel = snap.exists() ? (snap.data().papel || "operador") : "operador";
+      }catch(e2){ papel = "operador"; }
+    }
 
     document.getElementById("tela-login").classList.add("oculto");
     document.getElementById("tela-app").classList.remove("oculto");
@@ -533,14 +541,31 @@ document.getElementById("btn-refresh").addEventListener("click", ()=>{
 });
 
 // ===================== CARREGAR LINHAS =====================
+// tenta o cache local primeiro (instantâneo, funciona offline) e atualiza em 2º plano se houver rede
 async function carregarLinhas(){
-  const snap = await getDocs(collection(db, "linhas"));
+  let snap;
+  try{
+    snap = await getDocsFromCache(collection(db, "linhas"));
+    if(snap.empty) snap = await getDocs(collection(db, "linhas"));
+  }catch(e){
+    snap = await getDocs(collection(db, "linhas"));
+  }
+  aplicarLinhas(snap);
+
+  // atualização silenciosa em segundo plano — não trava a tela, só refina se mudou algo
+  getDocs(collection(db, "linhas")).then(aplicarLinhas).catch(()=>{});
+}
+
+function aplicarLinhas(snap){
   linhas = snap.docs.map(d=>({id:d.id, ...d.data()}));
   linhas.sort((a,b)=> a.nome.localeCompare(b.nome, "pt-BR", {numeric:true, sensitivity:"base"}));
   const opcoes = '<option value="">Todas as linhas</option>' +
     linhas.map(l=>`<option value="${l.id}">${l.nome}</option>`).join("");
   document.getElementById("filtro-linha").innerHTML = opcoes;
   document.getElementById("alerta-linha").innerHTML = opcoes;
+
+  const abaSelecionar = document.querySelector('nav.tabs button[data-tab="selecionar"]');
+  if(abaSelecionar && abaSelecionar.classList.contains("active")) renderSelecaoLinhas();
 }
 
 // ===================== TELA: SELECIONAR LINHA =====================
@@ -574,12 +599,18 @@ async function renderSelecaoLinhas(){
 }
 
 // determina, para uma linha, qual o próximo horário pendente no dia operacional atual
+// lê do cache local (instantâneo, sem esperar rede) — é chamada várias vezes seguidas (uma por linha na grade)
 async function proximoHorarioPendente(linhaObj){
   const dataOp = dataOperacionalHoje();
   for(const h of HORARIOS){
     const q = query(collection(db,"leituras"),
       where("linhaId","==",linhaObj.id), where("data","==",dataOp), where("horario","==",h));
-    const snap = await getDocs(q);
+    let snap;
+    try{
+      snap = await getDocsFromCache(q);
+    }catch(e){
+      snap = await getDocs(q); // sem cache ainda (uso raro) — precisa de rede
+    }
     if(snap.size < linhaObj.currais.length){
       return {horario:h, concluido:false, lancados: snap.docs.map(d=>d.data())};
     }
@@ -595,7 +626,7 @@ document.querySelectorAll(".toggle-modo button").forEach(b=>{
     modoVisual = b.dataset.modo;
     localStorage.setItem("modoVisualCocho", modoVisual);
     document.querySelectorAll(".toggle-modo button").forEach(x=>x.classList.toggle("active", x===b));
-    if(linhaAtual) renderizarLeitura(linhaAtual);
+    if(linhaAtual) desenharLeitura(linhaAtual);
   });
 });
 
@@ -610,7 +641,7 @@ document.getElementById("btn-inverter-ordem").addEventListener("click", ()=>{
   ordemInvertida = !ordemInvertida;
   localStorage.setItem("ordemInvertidaCocho", ordemInvertida ? "1" : "0");
   atualizarTextoOrdem();
-  if(linhaAtual) renderizarLeitura(linhaAtual);
+  if(linhaAtual) desenharLeitura(linhaAtual);
 });
 
 async function abrirLeitura(linhaObj){
@@ -620,6 +651,9 @@ async function abrirLeitura(linhaObj){
   document.getElementById("leitura-titulo").textContent = linhaObj.nome;
   await renderizarLeitura(linhaObj);
 }
+
+// estado local da linha/horário aberto no momento — evita reconsultar o Firestore a cada toque
+let leiturasAtuais = {};
 
 async function renderizarLeitura(linhaObj){
   const {horario, concluido, lancados} = await proximoHorarioPendente(linhaObj);
@@ -660,16 +694,37 @@ async function renderizarLeitura(linhaObj){
     return;
   }
 
-  const lancadosMap = {};
-  lancados.forEach(r=>lancadosMap[r.curral] = r);
+  // guarda o estado em memória — as próximas telas (após cada toque) usam isso, sem consultar o Firestore de novo
+  horarioAberto = horario;
+  leiturasAtuais = {};
+  lancados.forEach(r=>leiturasAtuais[r.curral] = r);
+  desenharLeitura(linhaObj);
+}
+
+// redesenha a tela de leitura a partir do estado local (leiturasAtuais) — nunca espera o Firestore
+function desenharLeitura(linhaObj){
+  const cont = document.getElementById("leitura-conteudo");
   const total = linhaObj.currais.length;
-  const feitos = Object.keys(lancadosMap).length;
+  const feitos = Object.keys(leiturasAtuais).length;
   const currais = ordemInvertida ? [...linhaObj.currais].reverse() : linhaObj.currais;
 
   if(modoVisual === "grade"){
-    renderGrade(linhaObj, horario, lancadosMap, total, feitos, cont, currais);
+    renderGrade(linhaObj, horarioAberto, leiturasAtuais, total, feitos, cont, currais);
   } else {
-    renderSequencial(linhaObj, horario, lancadosMap, total, feitos, cont, currais);
+    renderSequencial(linhaObj, horarioAberto, leiturasAtuais, total, feitos, cont, currais);
+  }
+}
+
+// chamado depois de marcar/desmarcar algo — decide se o horário fechou ou se é só redesenhar
+function aposAcaoDeLancamento(linhaObj){
+  const total = linhaObj.currais.length;
+  const feitos = Object.keys(leiturasAtuais).length;
+  if(feitos >= total){
+    toast(`Leitura das ${horarioAberto} da ${linhaObj.nome} concluída ✅`);
+    linhaAtual = null;
+    mostrarTab("selecionar");
+  } else {
+    desenharLeitura(linhaObj);
   }
 }
 
@@ -794,68 +849,57 @@ function renderGrade(linhaObj, horario, lancadosMap, total, feitos, cont, currai
 }
 
 // lança, altera ou desmarca (toque de novo no mesmo status) uma leitura
-async function lancar(linhaObj, horario, curral, status){
+// usa o estado local (leiturasAtuais) pra decidir tudo na hora — a gravação no Firestore roda em 2º plano,
+// sem travar a tela esperando confirmação do servidor (é isso que causava a demora offline)
+function lancar(linhaObj, horario, curral, status){
   const dataOp = dataOperacionalHoje();
   const docId = `${linhaObj.id}_${dataOp}_${horario}_${curral}`;
   const ref = doc(db, "leituras", docId);
-  try{
-    const snap = await getDoc(ref);
-    if(snap.exists() && snap.data().status === status){
-      await deleteDoc(ref);
-      toast(`${linhaObj.nome}-${curral} desmarcado`);
-      renderizarLeitura(linhaObj);
-      return;
-    }
+  const existente = leiturasAtuais[curral];
 
-    // preserva observação já existente, se houver, ao trocar o status
-    const observacaoAtual = snap.exists() ? (snap.data().observacao || "") : "";
-
-    await setDoc(ref, {
-      linhaId: linhaObj.id,
-      linhaNome: linhaObj.nome,
-      curral, horario, status,
-      observacao: observacaoAtual,
-      data: dataOp,
-      operador: usuario.email,
-      timestamp: serverTimestamp()
-    });
-
-    // confere se essa marcação concluiu o horário inteiro da linha
-    const qCheck = query(collection(db,"leituras"),
-      where("linhaId","==",linhaObj.id), where("data","==",dataOp), where("horario","==",horario));
-    const snapCheck = await getDocs(qCheck);
-    const r = rotuloStatus(horario, status);
-
-    if(snapCheck.size >= linhaObj.currais.length){
-      toast(`Leitura das ${horario} da ${linhaObj.nome} concluída ✅`);
-      linhaAtual = null;
-      mostrarTab("selecionar");
-    } else {
-      toast(`${linhaObj.nome}-${curral} · ${r.texto} ${r.emoji}`);
-      renderizarLeitura(linhaObj);
-    }
-  }catch(e){
-    toast("Erro ao salvar. Tentando novamente ao reconectar.");
+  if(existente && existente.status === status){
+    delete leiturasAtuais[curral];
+    deleteDoc(ref).catch(()=> toast("Não sincronizado ainda — será enviado quando voltar sinal."));
+    toast(`${linhaObj.nome}-${curral} desmarcado`);
+    aposAcaoDeLancamento(linhaObj);
+    return;
   }
+
+  const registro = {
+    linhaId: linhaObj.id,
+    linhaNome: linhaObj.nome,
+    curral, horario, status,
+    observacao: existente ? (existente.observacao || "") : "",
+    data: dataOp,
+    operador: usuario.email,
+    timestamp: serverTimestamp()
+  };
+  leiturasAtuais[curral] = registro;
+  setDoc(ref, registro).catch(()=> toast("Não sincronizado ainda — será enviado quando voltar sinal."));
+
+  const r = rotuloStatus(horario, status);
+  toast(`${linhaObj.nome}-${curral} · ${r.texto} ${r.emoji}`);
+  aposAcaoDeLancamento(linhaObj);
 }
 
 // fluxo específico da opção "Inventory" (06h) — pede a quantidade sobrando
-async function lancarInventory(linhaObj, horario, curral){
+function lancarInventory(linhaObj, horario, curral){
   const dataOp = dataOperacionalHoje();
   const docId = `${linhaObj.id}_${dataOp}_${horario}_${curral}`;
   const ref = doc(db, "leituras", docId);
-  const snap = await getDoc(ref);
-  const valorAtual = snap.exists() && snap.data().status === "inventory" ? snap.data().quantidade : "";
+  const existente = leiturasAtuais[curral];
+  const valorAtual = existente && existente.status === "inventory" ? existente.quantidade : "";
 
   const entrada = prompt(`Quantidade sobrando em ${linhaObj.nome}-${curral} (kg).\nDeixe em branco para remover.`, valorAtual === "" ? "" : String(valorAtual));
   if(entrada === null) return; // cancelou
 
   const texto = entrada.trim();
   if(texto === ""){
-    if(snap.exists() && snap.data().status === "inventory"){
-      await deleteDoc(ref);
+    if(existente && existente.status === "inventory"){
+      delete leiturasAtuais[curral];
+      deleteDoc(ref).catch(()=> toast("Não sincronizado ainda — será enviado quando voltar sinal."));
       toast(`${linhaObj.nome}-${curral} desmarcado`);
-      renderizarLeitura(linhaObj);
+      aposAcaoDeLancamento(linhaObj);
     }
     return;
   }
@@ -866,55 +910,42 @@ async function lancarInventory(linhaObj, horario, curral){
     return;
   }
 
-  try{
-    const observacaoAtual = snap.exists() ? (snap.data().observacao || "") : "";
-    await setDoc(ref, {
-      linhaId: linhaObj.id,
-      linhaNome: linhaObj.nome,
-      curral, horario, status: "inventory", quantidade,
-      observacao: observacaoAtual,
-      data: dataOp,
-      operador: usuario.email,
-      timestamp: serverTimestamp()
-    });
+  const registro = {
+    linhaId: linhaObj.id,
+    linhaNome: linhaObj.nome,
+    curral, horario, status: "inventory", quantidade,
+    observacao: existente ? (existente.observacao || "") : "",
+    data: dataOp,
+    operador: usuario.email,
+    timestamp: serverTimestamp()
+  };
+  leiturasAtuais[curral] = registro;
+  setDoc(ref, registro).catch(()=> toast("Não sincronizado ainda — será enviado quando voltar sinal."));
 
-    const qCheck = query(collection(db,"leituras"),
-      where("linhaId","==",linhaObj.id), where("data","==",dataOp), where("horario","==",horario));
-    const snapCheck = await getDocs(qCheck);
-
-    if(snapCheck.size >= linhaObj.currais.length){
-      toast(`Leitura das ${horario} da ${linhaObj.nome} concluída ✅`);
-      linhaAtual = null;
-      mostrarTab("selecionar");
-    } else {
-      toast(`${linhaObj.nome}-${curral} · Inventory 📦 ${quantidade}kg`);
-      renderizarLeitura(linhaObj);
-    }
-  }catch(e){
-    toast("Erro ao salvar. Tentando novamente ao reconectar.");
-  }
+  toast(`${linhaObj.nome}-${curral} · Inventory 📦 ${quantidade}kg`);
+  aposAcaoDeLancamento(linhaObj);
 }
 
 // adiciona/edita/remove a observação de uma leitura já lançada
-async function editarObservacao(linhaObj, horario, curral){
-  const dataOp = dataOperacionalHoje();
-  const docId = `${linhaObj.id}_${dataOp}_${horario}_${curral}`;
-  const ref = doc(db, "leituras", docId);
-  const snap = await getDoc(ref);
-  if(!snap.exists()){
+function editarObservacao(linhaObj, horario, curral){
+  const existente = leiturasAtuais[curral];
+  if(!existente){
     toast("Lance a leitura desse curral antes de adicionar observação.");
     return;
   }
-  const atual = snap.data().observacao || "";
-  const nova = prompt(`Observação para ${linhaObj.nome}-${curral}:`, atual);
+  const nova = prompt(`Observação para ${linhaObj.nome}-${curral}:`, existente.observacao || "");
   if(nova === null) return; // cancelou
-  try{
-    await setDoc(ref, { observacao: nova.trim() }, {merge:true});
-    toast(nova.trim() ? "Observação salva 📝" : "Observação removida");
-    renderizarLeitura(linhaObj);
-  }catch(e){
-    toast("Erro ao salvar observação.");
-  }
+
+  const dataOp = dataOperacionalHoje();
+  const docId = `${linhaObj.id}_${dataOp}_${horario}_${curral}`;
+  const ref = doc(db, "leituras", docId);
+
+  existente.observacao = nova.trim();
+  setDoc(ref, { observacao: nova.trim() }, {merge:true})
+    .catch(()=> toast("Não sincronizado ainda — será enviado quando voltar sinal."));
+
+  toast(nova.trim() ? "Observação salva 📝" : "Observação removida");
+  desenharLeitura(linhaObj);
 }
 
 // ===================== HISTÓRICO =====================

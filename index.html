@@ -1040,17 +1040,20 @@ function gerarPdfHistorico(regs){
   pdf.text(`Gerado em ${new Date().toLocaleString("pt-BR")}`, 32, 64);
 
   // ---- cartões de KPI ----
-  const totalOk = regs.filter(r=>rotuloStatus(r.horario, r.status).cor==="ok").length;
-  const totalNo = regs.filter(r=>rotuloStatus(r.horario, r.status).cor==="no").length;
-  const totalWarn = regs.filter(r=>rotuloStatus(r.horario, r.status).cor==="warn").length;
+  const vazio18 = regs.filter(r=>r.horario==="18h" && r.status==="vazio").length;
+  const vazio20 = regs.filter(r=>r.horario==="20h" && r.status==="vazio").length;
+  const vazio03 = regs.filter(r=>r.horario==="03h" && r.status==="vazio").length;
+  const totalCrumbs = regs.filter(r=>r.status==="crumbs").length;
+  const totalInventory = regs.filter(r=>r.status==="inventory").length;
   const kpis = [
-    { label: "Cheio / Crumbs", valor: totalOk, cor: VERDE_LAGE },
-    { label: "Vazio / Dry",    valor: totalNo, cor: VAZIO },
-    { label: "Inventory",      valor: totalWarn, cor: LARANJA },
-    { label: "Total",          valor: regs.length, cor: VERDE_ESCURO }
+    { label: "Vazio 18h", valor: vazio18, cor: VAZIO },
+    { label: "Vazio 20h", valor: vazio20, cor: VAZIO },
+    { label: "Vazio 03h", valor: vazio03, cor: VAZIO },
+    { label: "Inventory", valor: totalInventory, cor: LARANJA },
+    { label: "Crumbs",    valor: totalCrumbs, cor: VERDE_LAGE }
   ];
-  const kpiY = 96, margem = 32, gap = 10;
-  const kpiW = (W - margem*2 - gap*3) / 4;
+  const kpiY = 96, margem = 32, gap = 8;
+  const kpiW = (W - margem*2 - gap*(kpis.length-1)) / kpis.length;
   kpis.forEach((k, i)=>{
     const x = margem + i*(kpiW+gap);
     pdf.setDrawColor(...k.cor);
@@ -1058,10 +1061,10 @@ function gerarPdfHistorico(regs){
     pdf.roundedRect(x, kpiY, kpiW, 50, 6, 6, "S");
     pdf.setTextColor(...k.cor);
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(19);
+    pdf.setFontSize(18);
     pdf.text(String(k.valor), x + kpiW/2, kpiY + 26, { align: "center" });
     pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(7.5);
+    pdf.setFontSize(7);
     pdf.setTextColor(...CINZA_TXT);
     pdf.text(k.label, x + kpiW/2, kpiY + 40, { align: "center" });
   });

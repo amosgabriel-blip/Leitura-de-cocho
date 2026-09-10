@@ -1021,6 +1021,12 @@ function gerarPdfHistorico(regs){
   const VAZIO = [179, 56, 44];
   const CINZA_TXT = [92, 107, 103];
 
+  // escala de severidade dos horários (18h = mais crítico → 06h = ideal)
+  const VERMELHO_VIVO = [214, 25, 25];
+  const AMARELO = [230, 168, 11];
+  const VERDE_CLARO = [124, 191, 90];
+  const ROXO = [124, 58, 214];
+
   const dataFiltro = document.getElementById("filtro-data").value;
   const selLinha = document.getElementById("filtro-linha");
   const linhaTxt = selLinha.value ? selLinha.options[selLinha.selectedIndex].text : "Todas as linhas";
@@ -1039,35 +1045,51 @@ function gerarPdfHistorico(regs){
   pdf.text(`${dataFiltro ? dataFormatada(dataFiltro) : "Todas as datas"}  ·  ${linhaTxt}  ·  ${horarioTxt}`, 32, 50);
   pdf.text(`Gerado em ${new Date().toLocaleString("pt-BR")}`, 32, 64);
 
-  // ---- cartões de KPI ----
+  // ---- cartões de KPI (2 linhas) ----
   const vazio18 = regs.filter(r=>r.horario==="18h" && r.status==="vazio").length;
   const vazio20 = regs.filter(r=>r.horario==="20h" && r.status==="vazio").length;
+  const vazio00 = regs.filter(r=>r.horario==="00h" && r.status==="vazio").length;
   const vazio03 = regs.filter(r=>r.horario==="03h" && r.status==="vazio").length;
-  const totalCrumbs = regs.filter(r=>r.status==="crumbs").length;
+  const dry06 = regs.filter(r=>r.horario==="06h" && r.status==="dry").length;
   const totalInventory = regs.filter(r=>r.status==="inventory").length;
-  const kpis = [
-    { label: "Vazio 18h", valor: vazio18, cor: VAZIO },
-    { label: "Vazio 20h", valor: vazio20, cor: VAZIO },
-    { label: "Vazio 03h", valor: vazio03, cor: VAZIO },
-    { label: "Inventory", valor: totalInventory, cor: LARANJA },
-    { label: "Crumbs",    valor: totalCrumbs, cor: VERDE_LAGE }
-  ];
-  const kpiY = 96, margem = 32, gap = 8;
-  const kpiW = (W - margem*2 - gap*(kpis.length-1)) / kpis.length;
-  kpis.forEach((k, i)=>{
-    const x = margem + i*(kpiW+gap);
-    pdf.setDrawColor(...k.cor);
-    pdf.setLineWidth(1.1);
-    pdf.roundedRect(x, kpiY, kpiW, 50, 6, 6, "S");
-    pdf.setTextColor(...k.cor);
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(18);
-    pdf.text(String(k.valor), x + kpiW/2, kpiY + 26, { align: "center" });
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(7);
-    pdf.setTextColor(...CINZA_TXT);
-    pdf.text(k.label, x + kpiW/2, kpiY + 40, { align: "center" });
-  });
+  const totalCrumbs = regs.filter(r=>r.status==="crumbs").length;
+
+  const margem = 32;
+
+  function desenharLinhaKpis(lista, y){
+    const gap = 8;
+    const larg = (W - margem*2 - gap*(lista.length-1)) / lista.length;
+    lista.forEach((k, i)=>{
+      const x = margem + i*(larg+gap);
+      pdf.setDrawColor(...k.cor);
+      pdf.setLineWidth(1.1);
+      pdf.roundedRect(x, y, larg, 50, 6, 6, "S");
+      pdf.setTextColor(...k.cor);
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(18);
+      pdf.text(String(k.valor), x + larg/2, y + 26, { align: "center" });
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(7);
+      pdf.setTextColor(...CINZA_TXT);
+      pdf.text(k.label, x + larg/2, y + 40, { align: "center" });
+    });
+  }
+
+  const kpiY = 96;
+  desenharLinhaKpis([
+    { label: "Vazio 18h · muito crítico", valor: vazio18, cor: VERMELHO_VIVO },
+    { label: "Vazio 20h · crítico",       valor: vazio20, cor: LARANJA },
+    { label: "Vazio 00h · atenção",       valor: vazio00, cor: AMARELO },
+    { label: "Vazio 03h",                 valor: vazio03, cor: VERDE_CLARO }
+  ], kpiY);
+
+  const kpiY2 = kpiY + 62;
+  desenharLinhaKpis([
+    { label: "Dry 06h · ideal", valor: dry06, cor: VERDE_ESCURO },
+    { label: "Inventory",       valor: totalInventory, cor: ROXO },
+    { label: "Crumbs",          valor: totalCrumbs, cor: VERDE_LAGE }
+  ], kpiY2);
+
 
   // ---- tabela pivotada: 1 linha por curral (por data), 1 coluna por horário ----
   const porChave = {};
@@ -1104,7 +1126,7 @@ function gerarPdfHistorico(regs){
   });
 
   pdf.autoTable({
-    startY: kpiY + 66,
+    startY: kpiY2 + 66,
     head: [ multiData
       ? ["Data","Curral","18h","20h","00h","03h","06h"]
       : ["Curral","18h","20h","00h","03h","06h"] ],

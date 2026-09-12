@@ -132,11 +132,19 @@
   .mini-btn.selecionado.mini-cheio, .mini-btn.selecionado.mini-crumbs{background:var(--verde-lage);}
   .mini-btn.selecionado.mini-vazio, .mini-btn.selecionado.mini-dry{background:var(--vazio);}
   .mini-btn.selecionado.mini-inventory{background:var(--laranja);}
+  .grade-cel-acoes{display:flex; gap:5px; margin-top:7px;}
   .btn-obs{
-    width:100%; margin-top:7px; background:none; border:1.5px dashed var(--linha); border-radius:9px;
+    flex:1; margin-top:0; background:none; border:1.5px dashed var(--linha); border-radius:9px;
     padding:6px 4px; font-size:10.5px; font-weight:600; color:var(--texto-sub); cursor:pointer;
   }
   .btn-obs.tem-obs{border-style:solid; border-color:var(--laranja); color:var(--laranja-d);}
+
+  .bloco-vazios{margin-top:20px; padding-top:16px; border-top:1px dashed var(--linha);}
+  .bloco-vazios-titulo{font-size:12px; font-weight:700; color:var(--texto-sub); margin-bottom:8px;}
+  .chip-vazio{
+    font-size:11.5px; font-weight:600; padding:7px 11px; border-radius:10px; font-family:'Inter',sans-serif;
+    background:#ECE9DE; color:var(--texto-sub); cursor:pointer;
+  }
 
   .barra-topo{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
   .barra-topo .titulo{font-family:'Manrope',sans-serif; font-weight:800; font-size:19px; color:var(--verde-escuro);}
@@ -577,20 +585,26 @@ async function renderSelecaoLinhas(){
   }
   grid.innerHTML = "";
   for(const l of linhas){
-    const {horario, concluido} = await proximoHorarioPendente(l);
+    const ativos = curraisAtivos(l).length;
+    const vazios = l.currais.length - ativos;
     const card = document.createElement("div");
     card.className = "card-linha";
     let statusHtml;
-    if(concluido){
-      statusHtml = `<div class="status concluido">✓ Ciclo concluído</div>`;
-    } else if(!horarioLiberado(horario)){
-      statusHtml = `<div class="status bloqueado">🔒 Aguarda ${horario}</div>`;
+    if(ativos === 0){
+      statusHtml = `<div class="status bloqueado">Sem animais</div>`;
     } else {
-      statusHtml = `<div class="status pendente">Pronta: ${horario}</div>`;
+      const {horario, concluido} = await proximoHorarioPendente(l);
+      if(concluido){
+        statusHtml = `<div class="status concluido">✓ Ciclo concluído</div>`;
+      } else if(!horarioLiberado(horario)){
+        statusHtml = `<div class="status bloqueado">🔒 Aguarda ${horario}</div>`;
+      } else {
+        statusHtml = `<div class="status pendente">Pronta: ${horario}</div>`;
+      }
     }
     card.innerHTML = `
       <div class="nome">${l.nome}</div>
-      <div class="qtd">${l.currais.length} currais</div>
+      <div class="qtd">${ativos} currais${vazios>0 ? ` · ${vazios} sem animais` : ""}</div>
       ${statusHtml}
     `;
     card.addEventListener("click", ()=> abrirLeitura(l));
@@ -598,10 +612,17 @@ async function renderSelecaoLinhas(){
   }
 }
 
+// devolve só os currais que têm animais (exclui os marcados como "sem animais")
+function curraisAtivos(linhaObj){
+  const vazios = linhaObj.curraisVazios || [];
+  return linhaObj.currais.filter(c=>!vazios.includes(c));
+}
+
 // determina, para uma linha, qual o próximo horário pendente no dia operacional atual
 // lê do cache local (instantâneo, sem esperar rede) — é chamada várias vezes seguidas (uma por linha na grade)
 async function proximoHorarioPendente(linhaObj){
   const dataOp = dataOperacionalHoje();
+  const totalAtivos = curraisAtivos(linhaObj).length;
   for(const h of HORARIOS){
     const q = query(collection(db,"leituras"),
       where("linhaId","==",linhaObj.id), where("data","==",dataOp), where("horario","==",h));
@@ -611,7 +632,7 @@ async function proximoHorarioPendente(linhaObj){
     }catch(e){
       snap = await getDocs(q); // sem cache ainda (uso raro) — precisa de rede
     }
-    if(snap.size < linhaObj.currais.length){
+    if(snap.size < totalAtivos){
       return {horario:h, concluido:false, lancados: snap.docs.map(d=>d.data())};
     }
   }
@@ -656,8 +677,17 @@ async function abrirLeitura(linhaObj){
 let leiturasAtuais = {};
 
 async function renderizarLeitura(linhaObj){
-  const {horario, concluido, lancados} = await proximoHorarioPendente(linhaObj);
   const cont = document.getElementById("leitura-conteudo");
+
+  if(curraisAtivos(linhaObj).length === 0){
+    document.getElementById("leitura-horario").textContent = "—";
+    horarioAberto = null;
+    leiturasAtuais = {};
+    desenharLeitura(linhaObj);
+    return;
+  }
+
+  const {horario, concluido, lancados} = await proximoHorarioPendente(linhaObj);
 
   if(concluido){
     document.getElementById("leitura-horario").textContent = "—";
@@ -704,9 +734,28 @@ async function renderizarLeitura(linhaObj){
 // redesenha a tela de leitura a partir do estado local (leiturasAtuais) — nunca espera o Firestore
 function desenharLeitura(linhaObj){
   const cont = document.getElementById("leitura-conteudo");
-  const total = linhaObj.currais.length;
+  const ativos = curraisAtivos(linhaObj);
+  const total = ativos.length;
   const feitos = Object.keys(leiturasAtuais).length;
-  const currais = ordemInvertida ? [...linhaObj.currais].reverse() : linhaObj.currais;
+
+  if(total === 0){
+    document.getElementById("toggle-modo").classList.add("oculto");
+    document.getElementById("btn-inverter-ordem").classList.add("oculto");
+    cont.innerHTML = `
+      <div class="concluido-box">
+        <div class="ic">🐂</div>
+        <h3>Nenhum curral com animais</h3>
+        <p>Todos os currais desta linha estão marcados como sem animais.</p>
+      </div>
+      ${blocoCurraisVazios(linhaObj)}
+      <button class="btn btn-outline" style="margin-top:14px;" id="btn-voltar-linhas">← Voltar</button>
+    `;
+    document.getElementById("btn-voltar-linhas").addEventListener("click", ()=>mostrarTab("selecionar"));
+    ligarReativacao(linhaObj);
+    return;
+  }
+
+  const currais = ordemInvertida ? [...ativos].reverse() : ativos;
 
   if(modoVisual === "grade"){
     renderGrade(linhaObj, horarioAberto, leiturasAtuais, total, feitos, cont, currais);
@@ -717,9 +766,9 @@ function desenharLeitura(linhaObj){
 
 // chamado depois de marcar/desmarcar algo — decide se o horário fechou ou se é só redesenhar
 function aposAcaoDeLancamento(linhaObj){
-  const total = linhaObj.currais.length;
+  const total = curraisAtivos(linhaObj).length;
   const feitos = Object.keys(leiturasAtuais).length;
-  if(feitos >= total){
+  if(total > 0 && feitos >= total){
     toast(`Leitura das ${horarioAberto} da ${linhaObj.nome} concluída ✅`);
     linhaAtual = null;
     mostrarTab("selecionar");
@@ -738,6 +787,46 @@ function rotuloStatus(horario, status){
   if(status==="cheio") return {emoji:"👍", texto:"Cheio", cor:"ok"};
   if(status==="vazio") return {emoji:"👎", texto:"Vazio", cor:"no"};
   return {emoji:"❔", texto:status, cor:""};
+}
+
+// marca (ou reativa) um curral como "sem animais" — some do fluxo de leitura até ser reativado.
+// grava na própria linha (curraisVazios), não numa leitura — qualquer usuário logado pode fazer isso.
+function marcarCurralVazio(linhaObj, curral, vazio){
+  linhaObj.curraisVazios = linhaObj.curraisVazios || [];
+
+  if(vazio){
+    if(!linhaObj.curraisVazios.includes(curral)) linhaObj.curraisVazios.push(curral);
+    // remove uma leitura já lançada pra esse curral no horário aberto, se houver (não faz sentido manter)
+    if(leiturasAtuais[curral]){
+      const dataOp = dataOperacionalHoje();
+      const docId = `${linhaObj.id}_${dataOp}_${horarioAberto}_${curral}`;
+      deleteDoc(doc(db, "leituras", docId)).catch(()=>{});
+      delete leiturasAtuais[curral];
+    }
+  } else {
+    linhaObj.curraisVazios = linhaObj.curraisVazios.filter(c=>c!==curral);
+  }
+
+  setDoc(doc(db, "linhas", linhaObj.id), { curraisVazios: linhaObj.curraisVazios }, { merge:true })
+    .catch(()=> toast("Não sincronizado ainda — será enviado quando voltar sinal."));
+
+  toast(vazio ? `${linhaObj.nome}-${curral} marcado sem animais` : `${linhaObj.nome}-${curral} reativado`);
+  aposAcaoDeLancamento(linhaObj);
+}
+
+// bloco compacto mostrando os currais marcados "sem animais" da linha, com opção de reativar
+function blocoCurraisVazios(linhaObj){
+  const vazios = linhaObj.curraisVazios || [];
+  if(vazios.length===0) return "";
+  const chips = vazios.map(c=>`<span class="chip-vazio" data-reativar="${c}">🚫 ${linhaObj.nome}-${c} · toque p/ reativar</span>`).join("");
+  return `<div class="bloco-vazios"><div class="bloco-vazios-titulo">Sem animais nesta linha</div><div class="lista-lancados">${chips}</div></div>`;
+}
+
+// liga os cliques de reativação do bloco acima — chamar sempre depois de inserir o bloco no DOM
+function ligarReativacao(linhaObj){
+  document.querySelectorAll("[data-reativar]").forEach(el=>{
+    el.addEventListener("click", ()=> marcarCurralVazio(linhaObj, el.dataset.reativar, false));
+  });
 }
 
 // ---- modo curral por curral ----
@@ -776,7 +865,9 @@ function renderSequencial(linhaObj, horario, lancadosMap, total, feitos, cont, c
       <div class="num">${linhaObj.nome}-${curralAtual}</div>
     </div>
     ${botoesHtml}
+    <button class="link-ordem" id="btn-sem-animais" style="padding-top:0;">🚫 Este curral está sem animais</button>
     ${chips ? `<div class="lista-lancados">${chips}</div><p class="dica-obs">Toque em um curral já lançado para adicionar observação</p>` : ""}
+    ${blocoCurraisVazios(linhaObj)}
     <button class="btn btn-outline" style="margin-top:20px;" id="btn-voltar-linhas">← Trocar de linha</button>
   `;
 
@@ -788,10 +879,12 @@ function renderSequencial(linhaObj, horario, lancadosMap, total, feitos, cont, c
     document.getElementById("btn-cheio").addEventListener("click", ()=>lancar(linhaObj, horario, curralAtual, "cheio"));
     document.getElementById("btn-vazio").addEventListener("click", ()=>lancar(linhaObj, horario, curralAtual, "vazio"));
   }
+  document.getElementById("btn-sem-animais").addEventListener("click", ()=> marcarCurralVazio(linhaObj, curralAtual, true));
   cont.querySelectorAll(".chip-curral").forEach(chip=>{
     chip.addEventListener("click", ()=> editarObservacao(linhaObj, horario, chip.dataset.curral));
   });
   document.getElementById("btn-voltar-linhas").addEventListener("click", ()=>mostrarTab("selecionar"));
+  ligarReativacao(linhaObj);
 }
 
 // ---- modo linha completa (grade com todos os currais) ----
@@ -824,7 +917,10 @@ function renderGrade(linhaObj, horario, lancadosMap, total, feitos, cont, currai
         <div class="grade-cel-nome">${linhaObj.nome}-${c} ${obsMark}</div>
         ${qtdTxt}
         ${botoes}
-        <button class="btn-obs ${reg && reg.observacao ? "tem-obs":""}" data-curral="${c}">📝 nota</button>
+        <div class="grade-cel-acoes">
+          <button class="btn-obs ${reg && reg.observacao ? "tem-obs":""}" data-curral="${c}">📝 nota</button>
+          <button class="btn-obs" data-vazio="${c}">🚫 vazio</button>
+        </div>
       </div>
     `;
   }).join("");
@@ -833,6 +929,7 @@ function renderGrade(linhaObj, horario, lancadosMap, total, feitos, cont, currai
     <div class="progresso-wrap"><div class="progresso-fill" style="width:${(feitos/total*100)}%"></div></div>
     <div class="progresso-txt">${feitos} de ${total} currais lançados · toque para marcar, toque de novo para alterar ou desmarcar</div>
     <div class="grade-currais">${celulas}</div>
+    ${blocoCurraisVazios(linhaObj)}
     <button class="btn btn-outline" style="margin-top:20px;" id="btn-voltar-linhas">← Trocar de linha</button>
   `;
 
@@ -842,10 +939,14 @@ function renderGrade(linhaObj, horario, lancadosMap, total, feitos, cont, currai
       else lancar(linhaObj, horario, b.dataset.curral, b.dataset.status);
     });
   });
-  cont.querySelectorAll(".btn-obs").forEach(b=>{
+  cont.querySelectorAll(".btn-obs[data-curral]").forEach(b=>{
     b.addEventListener("click", ()=> editarObservacao(linhaObj, horario, b.dataset.curral));
   });
+  cont.querySelectorAll("[data-vazio]").forEach(b=>{
+    b.addEventListener("click", ()=> marcarCurralVazio(linhaObj, b.dataset.vazio, true));
+  });
   document.getElementById("btn-voltar-linhas").addEventListener("click", ()=>mostrarTab("selecionar"));
+  ligarReativacao(linhaObj);
 }
 
 // lança, altera ou desmarca (toque de novo no mesmo status) uma leitura
@@ -1313,15 +1414,18 @@ function renderConfig(){
   if(linhas.length===0){
     cont.innerHTML = `<p style="color:var(--texto-sub); font-size:13px;">Nenhuma linha cadastrada ainda.</p>`;
   } else {
-    cont.innerHTML = linhas.map(l=>`
+    cont.innerHTML = linhas.map(l=>{
+      const ativos = curraisAtivos(l).length;
+      const vazios = l.currais.length - ativos;
+      return `
       <div class="linha-config">
-        <div class="info"><b>${l.nome}</b><span>${l.currais.length} currais</span></div>
+        <div class="info"><b>${l.nome}</b><span>${l.currais.length} currais${vazios>0 ? ` · ${vazios} sem animais` : ""}</span></div>
         <div style="display:flex; gap:6px;">
           <button data-editar="${l.id}">Editar</button>
           <button data-excluir="${l.id}">Excluir</button>
         </div>
       </div>
-    `).join("");
+    `;}).join("");
     cont.querySelectorAll("[data-editar]").forEach(b=>b.addEventListener("click", ()=>editarLinha(b.dataset.editar)));
     cont.querySelectorAll("[data-excluir]").forEach(b=>b.addEventListener("click", ()=>excluirLinha(b.dataset.excluir)));
   }

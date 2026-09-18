@@ -428,7 +428,7 @@ import {
 import {
   getFirestore, collection, doc, getDoc, getDocs, getDocFromCache, getDocsFromCache,
   addDoc, setDoc, deleteDoc,
-  query, where, orderBy, onSnapshot, serverTimestamp, enableIndexedDbPersistence
+  query, where, orderBy, onSnapshot, serverTimestamp, enableMultiTabIndexedDbPersistence
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 // ===================== CONFIGURAÇÃO FIREBASE =====================
@@ -444,7 +444,16 @@ const firebaseConfig = {
 const fbApp = initializeApp(firebaseConfig);
 const auth = getAuth(fbApp);
 const db = getFirestore(fbApp);
-try { enableIndexedDbPersistence(db); } catch(e) { /* já habilitado ou navegador não suporta */ }
+// persistência offline com suporte a múltiplas abas abertas ao mesmo tempo — evita o erro
+// "Failed to obtain exclusive access" quando o app é aberto em mais de uma aba/janela
+enableMultiTabIndexedDbPersistence(db).catch((err)=>{
+  if(err.code === "failed-precondition"){
+    // não deveria mais acontecer com multi-tab, mas por segurança: outra aba já está controlando
+    console.warn("Persistência offline ativa em outra aba.");
+  } else if(err.code === "unimplemented"){
+    console.warn("Este navegador não suporta persistência offline.");
+  }
+});
 
 // ===================== CONSTANTES =====================
 const HORARIOS = ["18h","20h","00h","03h","06h"];

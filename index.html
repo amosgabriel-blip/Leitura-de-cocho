@@ -232,6 +232,16 @@
   .barra-num{font-size:10.5px; font-weight:800; color:var(--vazio-d); margin-top:4px;}
   .barra-label{font-size:9.5px; color:var(--texto-sub); margin-top:2px; white-space:nowrap;}
   .badge-contagem{background:var(--vazio); color:#fff; font-size:11.5px; font-weight:700; padding:3px 10px; border-radius:20px;}
+
+  .alerta-critico-box{
+    background:#FDECEC; border:1.5px solid var(--vazio); border-radius:16px; padding:16px 18px; margin-bottom:16px;
+    display:flex; gap:12px; align-items:flex-start;
+  }
+  .alerta-critico-box .ic{font-size:24px; line-height:1;}
+  .alerta-critico-box h4{margin:0 0 4px; color:var(--vazio-d); font-family:'Manrope',sans-serif; font-size:14.5px;}
+  .alerta-critico-box p{margin:0; font-size:12.5px; color:#7a2e24;}
+  .alerta-critico-box .chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;}
+  .alerta-critico-box .chip{background:var(--vazio); color:#fff; font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:20px;}
   .linha-config{display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--linha);}
   .linha-config:last-child{border-bottom:none;}
   .linha-config .info b{display:block; font-size:14px;}
@@ -332,17 +342,27 @@
 
       <!-- ---- VIEW: alertas (admin/gestor) ---- -->
       <section id="view-alertas" class="oculto">
-        <h3 style="color:var(--verde-escuro); margin-bottom:2px;">Cocho vazio · 18h e 20h</h3>
-        <p style="color:var(--texto-sub); font-size:13px; margin-top:0;">Leituras críticas — vazio nesses horários indica sub-oferta.</p>
+        <h3 style="color:var(--verde-escuro); margin-bottom:2px;">Falta de ração</h3>
+        <p style="color:var(--texto-sub); font-size:13px; margin-top:0;">Currais que ficaram sem ração no horário selecionado, ao longo do período.</p>
         <div class="filtros">
           <input type="date" id="alerta-data-ini">
           <input type="date" id="alerta-data-fim">
+          <select id="alerta-horario">
+            <option value="18h">18h</option>
+            <option value="20h">20h</option>
+            <option value="00h">00h</option>
+            <option value="03h">03h</option>
+            <option value="06h">06h (Dry)</option>
+          </select>
           <select id="alerta-linha"><option value="">Todas as linhas</option></select>
         </div>
+
+        <div id="alerta-critico" class="oculto"></div>
+
         <div class="resumo-dia" id="alerta-resumo"></div>
 
         <div class="painel">
-          <h3>Vazios por dia</h3>
+          <h3 id="alerta-titulo-grafico">Sem ração por dia</h3>
           <div class="grafico-barras" id="alerta-grafico"></div>
         </div>
 
@@ -1339,7 +1359,12 @@ function gerarPdfHistorico(regs){
   pdf.save(`leitura-cocho-${dataFiltro || "historico"}.pdf`);
 }
 
-// ===================== ALERTAS: VAZIO ÀS 18h/20h (admin/gestor) =====================
+// ===================== ALERTAS: FALTA DE RAÇÃO (admin/gestor) =====================
+// mapeia o horário pro status que significa "acabou a ração" nele (vazio, ou dry no caso do 06h)
+function statusFaltaRacao(horario){
+  return horario === "06h" ? "dry" : "vazio";
+}
+
 function abrirAlertas(){
   if(!document.getElementById("alerta-data-fim").value){
     const hoje = dataOperacionalHoje();
@@ -1350,7 +1375,7 @@ function abrirAlertas(){
   }
   carregarAlertas();
 }
-["alerta-data-ini","alerta-data-fim","alerta-linha"].forEach(id=>{
+["alerta-data-ini","alerta-data-fim","alerta-horario","alerta-linha"].forEach(id=>{
   document.getElementById(id).addEventListener("change", carregarAlertas);
 });
 
@@ -1359,8 +1384,12 @@ function carregarAlertas(){
   const dataIni = document.getElementById("alerta-data-ini").value;
   const dataFim = document.getElementById("alerta-data-fim").value;
   const linhaId = document.getElementById("alerta-linha").value;
+  const horarioSel = document.getElementById("alerta-horario").value;
+  const statusSel = statusFaltaRacao(horarioSel);
 
-  let condicoes = [where("horario","in",["18h","20h"]), where("status","==","vazio")];
+  document.getElementById("alerta-titulo-grafico").textContent = `Sem ração às ${horarioSel} · por dia`;
+
+  let condicoes = [where("horario","==",horarioSel), where("status","==",statusSel)];
   if(dataIni) condicoes.push(where("data",">=",dataIni));
   if(dataFim) condicoes.push(where("data","<=",dataFim));
   if(linhaId) condicoes.push(where("linhaId","==",linhaId));
@@ -1373,6 +1402,47 @@ function carregarAlertas(){
         `<div class="vazio-estado"><div class="ic">⚠️</div>Não foi possível carregar. Se for a primeira vez, o Firestore pode pedir para criar um índice — abra o console do navegador (F12), clique no link do erro e depois em "Criar índice".</div>`;
     }
   );
+
+  // alerta crítico é sempre sobre 18h, independente do horário escolhido no filtro acima
+  verificarAlertaCritico18h(dataIni, dataFim, linhaId);
+}
+
+// currais que deram vazio às 18h mais de 2 vezes no período — o caso mais grave (sub-oferta logo no início da noite)
+function verificarAlertaCritico18h(dataIni, dataFim, linhaId){
+  let condicoes = [where("horario","==","18h"), where("status","==","vazio")];
+  if(dataIni) condicoes.push(where("data",">=",dataIni));
+  if(dataFim) condicoes.push(where("data","<=",dataFim));
+  if(linhaId) condicoes.push(where("linhaId","==",linhaId));
+  const q = query(collection(db,"leituras"), ...condicoes);
+
+  getDocs(q).then(snap=>{
+    const porCurral = {};
+    snap.docs.forEach(d=>{
+      const r = d.data();
+      const chave = `${r.linhaNome}-${r.curral}`;
+      porCurral[chave] = (porCurral[chave]||0)+1;
+    });
+    const criticos = Object.entries(porCurral).filter(([,n])=>n>2).sort((a,b)=>b[1]-a[1]);
+    const box = document.getElementById("alerta-critico");
+    if(criticos.length===0){
+      box.classList.add("oculto");
+      box.innerHTML = "";
+      return;
+    }
+    box.classList.remove("oculto");
+    box.innerHTML = `
+      <div class="alerta-critico-box">
+        <div class="ic">🚨</div>
+        <div>
+          <h4>Alerta crítico — vazio recorrente às 18h</h4>
+          <p>${criticos.length} curral(is) ficaram sem ração às 18h mais de 2 vezes no período selecionado.</p>
+          <div class="chips">
+            ${criticos.map(([chave,n])=>`<span class="chip">${chave} · ${n}x</span>`).join("")}
+          </div>
+        </div>
+      </div>
+    `;
+  }).catch(()=>{});
 }
 
 function renderAlertas(regs){
@@ -1396,12 +1466,12 @@ function renderAlertas(regs){
   const dias = Object.keys(porDia).sort();
   const max = Math.max(1, ...Object.values(porDia));
   document.getElementById("alerta-grafico").innerHTML = dias.length ? dias.map(d=>`
-    <div class="barra-dia" title="${dataFormatada(d)}: ${porDia[d]} vazio(s)">
+    <div class="barra-dia" title="${dataFormatada(d)}: ${porDia[d]} ocorrência(s)">
       <div class="barra-fill" style="height:${(porDia[d]/max*100)}%"></div>
       <div class="barra-num">${porDia[d]}</div>
       <div class="barra-label">${dataFormatada(d).slice(0,5)}</div>
     </div>
-  `).join("") : `<p style="color:var(--texto-sub); font-size:13px;">Nenhum vazio no período.</p>`;
+  `).join("") : `<p style="color:var(--texto-sub); font-size:13px;">Nenhuma ocorrência no período.</p>`;
 
   // ---- ranking de currais recorrentes ----
   const porCurral = {};
@@ -1415,7 +1485,7 @@ function renderAlertas(regs){
       <span class="nome">${chave}</span>
       <span class="badge-contagem">${n}x</span>
     </div>
-  `).join("") : `<p style="color:var(--texto-sub); font-size:13px;">Nenhum curral repetiu vazio 2+ vezes no período.</p>`;
+  `).join("") : `<p style="color:var(--texto-sub); font-size:13px;">Nenhum curral repetiu no período.</p>`;
 
   // ---- lista cronológica ----
   const lista = document.getElementById("alerta-lista");

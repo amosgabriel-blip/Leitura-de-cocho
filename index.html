@@ -449,7 +449,7 @@ function toast(msg){
 function dataOperacionalHoje(){
   const agora = new Date();
   const d = new Date(agora);
-  if (agora.getHours() < 7) d.setDate(d.getDate() - 1);
+  if (agora.getHours() < 8) d.setDate(d.getDate() - 1);
   return isoData(d);
 }
 function isoData(d){
@@ -462,17 +462,18 @@ function dataFormatada(iso){
 }
 
 // quantos minutos já se passaram desde o início do ciclo (18h) até agora
-// retorna -1 se estivermos fora da janela do ciclo (dia, entre 07h e 18h)
+// retorna -1 se estivermos fora da janela do ciclo (dia, entre 08h e 18h)
 function minutosDesdeInicioCiclo(){
   const agora = new Date();
   const h = agora.getHours(), m = agora.getMinutes();
   if(h>=18) return (h-18)*60+m;
-  if(h<7) return (h+24-18)*60+m;
+  if(h<8) return (h+24-18)*60+m;
   return -1;
 }
 const HORARIO_MINUTOS = {"18h":0, "20h":120, "00h":360, "03h":540, "06h":720};
 
 // diz se já deu a hora real do celular para liberar esse horário
+// 06h fica liberado até 07h59 (janela estendida) — depois disso a data operacional já virou
 function horarioLiberado(horario){
   const decorrido = minutosDesdeInicioCiclo();
   if(decorrido < 0) return false;
@@ -729,6 +730,29 @@ async function renderizarLeitura(linhaObj){
   leiturasAtuais = {};
   lancados.forEach(r=>leiturasAtuais[r.curral] = r);
   desenharLeitura(linhaObj);
+
+  // confere com o servidor em 2º plano — pega o que outro aparelho já lançou e que ainda não tinha
+  // chegado no cache local daqui, sem travar a tela esperando essa resposta
+  atualizarLeiturasComServidor(linhaObj, horario);
+}
+
+function atualizarLeiturasComServidor(linhaObj, horarioEsperado){
+  const dataOp = dataOperacionalHoje();
+  const q = query(collection(db,"leituras"),
+    where("linhaId","==",linhaObj.id), where("data","==",dataOp), where("horario","==",horarioEsperado));
+  getDocs(q).then(snap=>{
+    // só aplica se o usuário ainda estiver na mesma linha/horário (não navegou pra outro lugar nesse meio tempo)
+    if(linhaAtual !== linhaObj || horarioAberto !== horarioEsperado) return;
+    let mudou = false;
+    snap.docs.forEach(d=>{
+      const r = d.data();
+      if(!leiturasAtuais[r.curral]){ leiturasAtuais[r.curral] = r; mudou = true; }
+    });
+    if(mudou){
+      toast("Leituras de outro aparelho sincronizadas");
+      aposAcaoDeLancamento(linhaObj);
+    }
+  }).catch(()=>{}); // sem rede — tudo bem, o cache local já foi usado
 }
 
 // redesenha a tela de leitura a partir do estado local (leiturasAtuais) — nunca espera o Firestore
@@ -1456,13 +1480,25 @@ async function excluirLinha(id){
 }
 
 document.getElementById("btn-salvar-linha").addEventListener("click", async ()=>{
+  const btnSalvar = document.getElementById("btn-salvar-linha");
+  if(btnSalvar.disabled) return; // trava contra duplo toque (causa mais comum de linha duplicada)
+
   const nome = document.getElementById("config-nome").value.trim();
   const curraisRaw = document.getElementById("config-currais").value.trim();
   if(!nome || !curraisRaw){ toast("Preencha nome e currais."); return; }
+
+  // avisa se já existe uma linha com esse nome (evita duplicar sem querer)
+  if(!editandoLinhaId && linhas.some(l=>l.nome.trim().toLowerCase()===nome.toLowerCase())){
+    if(!confirm(`Já existe uma linha chamada "${nome}". Cadastrar mesmo assim?`)) return;
+  }
+
   const currais = curraisRaw.split(",").map(c=>c.trim()).filter(Boolean);
+  btnSalvar.disabled = true;
+  const textoOriginal = btnSalvar.textContent;
+  btnSalvar.textContent = "Salvando...";
   try{
     if(editandoLinhaId){
-      await setDoc(doc(db,"linhas", editandoLinhaId), {nome, currais});
+      await setDoc(doc(db,"linhas", editandoLinhaId), {nome, currais}, {merge:true});
       toast("Linha atualizada.");
     } else {
       await addDoc(collection(db,"linhas"), {nome, currais});
@@ -1473,6 +1509,9 @@ document.getElementById("btn-salvar-linha").addEventListener("click", async ()=>
     renderConfig();
   }catch(e){
     toast("Erro ao salvar linha.");
+  }finally{
+    btnSalvar.disabled = false;
+    btnSalvar.textContent = textoOriginal;
   }
 });
 

@@ -578,7 +578,11 @@ function aplicarLinhas(snap){
 }
 
 // ===================== TELA: SELECIONAR LINHA =====================
+// trava contra corrida: se uma chamada mais nova começar enquanto essa ainda está montando
+// os cards (cada um espera uma consulta), a mais velha percebe e para — evita cards duplicados
+let selecaoRenderId = 0;
 async function renderSelecaoLinhas(){
+  const meuId = ++selecaoRenderId;
   const grid = document.getElementById("grid-linhas");
   if(linhas.length===0){
     grid.innerHTML = `<div class="vazio-estado" style="grid-column:1/-1;"><div class="ic">🐂</div>Nenhuma linha cadastrada.<br>${papel==="admin" ? "Vá em Config para cadastrar." : "Peça ao admin para cadastrar as linhas."}</div>`;
@@ -586,6 +590,7 @@ async function renderSelecaoLinhas(){
   }
   grid.innerHTML = "";
   for(const l of linhas){
+    if(meuId !== selecaoRenderId) return; // uma chamada mais nova assumiu — aborta esta
     const ativos = curraisAtivos(l).length;
     const vazios = l.currais.length - ativos;
     const card = document.createElement("div");
@@ -595,6 +600,7 @@ async function renderSelecaoLinhas(){
       statusHtml = `<div class="status bloqueado">Sem animais</div>`;
     } else {
       const {horario, concluido} = await proximoHorarioPendente(l);
+      if(meuId !== selecaoRenderId) return; // checa de novo depois do await
       if(concluido){
         statusHtml = `<div class="status concluido">✓ Ciclo concluído</div>`;
       } else if(!horarioLiberado(horario)){
@@ -603,6 +609,7 @@ async function renderSelecaoLinhas(){
         statusHtml = `<div class="status pendente">Pronta: ${horario}</div>`;
       }
     }
+    if(meuId !== selecaoRenderId) return;
     card.innerHTML = `
       <div class="nome">${l.nome}</div>
       <div class="qtd">${ativos} currais${vazios>0 ? ` · ${vazios} sem animais` : ""}</div>

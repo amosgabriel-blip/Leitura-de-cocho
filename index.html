@@ -141,6 +141,22 @@
 
   .bloco-vazios{margin-top:20px; padding-top:16px; border-top:1px dashed var(--linha);}
   .bloco-vazios-titulo{font-size:12px; font-weight:700; color:var(--texto-sub); margin-bottom:8px;}
+  .chuva-box{
+    background:#EAF2FB; border:1.5px solid #BFD6EE; border-radius:14px; padding:10px 14px; margin:0 0 14px;
+  }
+  .chuva-box summary{cursor:pointer; font-weight:700; font-size:13px; color:#1F4E79; list-style:none;}
+  .chuva-box summary::-webkit-details-marker{display:none;}
+  .chuva-linha{display:flex; gap:8px; margin-top:10px;}
+  .chuva-linha select{flex:1; padding:9px 10px; border-radius:10px; border:1.5px solid #BFD6EE; font-size:13.5px; background:#fff;}
+  .chuva-linha button{
+    border:none; border-radius:10px; padding:9px 14px; font-weight:700; font-size:13px; cursor:pointer;
+    background:#1F4E79; color:#fff;
+  }
+  .chuva-chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;}
+  .chuva-chip{
+    background:#fff; border:1.5px solid #BFD6EE; color:#1F4E79; font-size:12px; font-weight:700;
+    padding:6px 10px; border-radius:20px; cursor:pointer;
+  }
   .chip-vazio{
     font-size:11.5px; font-weight:600; padding:7px 11px; border-radius:10px; font-family:'Inter',sans-serif;
     background:#ECE9DE; color:var(--texto-sub); cursor:pointer;
@@ -300,6 +316,7 @@
       <section id="view-selecionar">
         <h3 style="color:var(--verde-escuro); margin-bottom:2px;">Escolha a linha</h3>
         <p style="color:var(--texto-sub); font-size:13px; margin-top:0;">Toque na linha que você vai lançar agora.</p>
+        <div id="painel-chuva"></div>
         <div class="grid-linhas" id="grid-linhas"></div>
       </section>
 
@@ -337,6 +354,7 @@
           <button class="btn btn-outline btn-exportar" id="btn-exportar-excel">⭳ Excel</button>
           <button class="btn btn-outline btn-exportar" id="btn-exportar-pdf">📄 PDF</button>
         </div>
+        <a class="link-ordem" href="painel.html" target="_blank" rel="noopener" style="text-decoration:underline; margin-top:6px;">🖥️ Abrir painel web (tela grande, ao vivo)</a>
         <div id="lista-historico" style="margin-top:18px;"></div>
       </section>
 
@@ -426,9 +444,10 @@ import {
   getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
-  getFirestore, collection, doc, getDoc, getDocs, getDocFromCache, getDocsFromCache,
+  initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+  collection, doc, getDoc, getDocs, getDocFromCache, getDocsFromCache,
   addDoc, setDoc, deleteDoc,
-  query, where, orderBy, onSnapshot, serverTimestamp, enableMultiTabIndexedDbPersistence
+  query, where, orderBy, onSnapshot, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 // ===================== CONFIGURAÇÃO FIREBASE =====================
@@ -443,17 +462,15 @@ const firebaseConfig = {
 };
 const fbApp = initializeApp(firebaseConfig);
 const auth = getAuth(fbApp);
-const db = getFirestore(fbApp);
-// persistência offline com suporte a múltiplas abas abertas ao mesmo tempo — evita o erro
-// "Failed to obtain exclusive access" quando o app é aberto em mais de uma aba/janela
-enableMultiTabIndexedDbPersistence(db).catch((err)=>{
-  if(err.code === "failed-precondition"){
-    // não deveria mais acontecer com multi-tab, mas por segurança: outra aba já está controlando
-    console.warn("Persistência offline ativa em outra aba.");
-  } else if(err.code === "unimplemented"){
-    console.warn("Este navegador não suporta persistência offline.");
-  }
+// Firestore já criado com cache offline + suporte a múltiplas abas configurado de uma vez
+// (forma atual recomendada, substitui enableIndexedDbPersistence/enableMultiTabIndexedDbPersistence)
+const db = initializeFirestore(fbApp, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
 });
+
+// URL do Apps Script publicado (veja apps-script-email.gs) — enquanto não configurar,
+// o app só não envia o e-mail, sem quebrar nada
+const EMAIL_WEBHOOK_URL = "COLE_AQUI_A_URL_DO_APPS_SCRIPT";
 
 // ===================== CONSTANTES =====================
 const HORARIOS = ["18h","20h","00h","03h","06h"];
@@ -519,7 +536,29 @@ document.getElementById("btn-login").addEventListener("click", async ()=>{
   try{
     await signInWithEmailAndPassword(auth, email, senha);
   }catch(e){
-    erroEl.textContent = "E-mail ou senha inválidos.";
+    console.error("Erro de login:", e.code, e.message); // ajuda a diagnosticar — olhe o console (F12) se a mensagem abaixo não bater
+    switch(e.code){
+      case "auth/invalid-email":
+        erroEl.textContent = "E-mail em formato inválido.";
+        break;
+      case "auth/user-disabled":
+        erroEl.textContent = "Essa conta foi desativada. Fale com o admin.";
+        break;
+      case "auth/too-many-requests":
+        erroEl.textContent = "Muitas tentativas seguidas. Aguarde um pouco e tente de novo.";
+        break;
+      case "auth/network-request-failed":
+        erroEl.textContent = "Sem conexão — o primeiro login do aparelho exige internet.";
+        break;
+      case "auth/user-not-found":
+      case "auth/wrong-password":
+      case "auth/invalid-credential":
+      case "auth/invalid-login-credentials":
+        erroEl.textContent = "E-mail ou senha inválidos.";
+        break;
+      default:
+        erroEl.textContent = `Erro ao entrar (${e.code || "desconhecido"}).`;
+    }
   }
 });
 
@@ -547,10 +586,13 @@ onAuthStateChanged(auth, async (user)=>{
     document.getElementById("tab-alertas").classList.toggle("oculto", !(papel==="admin" || papel==="gestor"));
 
     await carregarLinhas();
+    escutarHorariosPulados();
     mostrarTab("selecionar");
   } else {
     usuario = null;
     if(unsubAlertas){ unsubAlertas(); unsubAlertas = null; }
+    if(unsubPulados){ unsubPulados(); unsubPulados = null; dataPuladosEscutada = null; }
+    horariosPulados = new Set();
     document.getElementById("tela-app").classList.add("oculto");
     document.getElementById("tela-login").classList.remove("oculto");
   }
@@ -577,6 +619,79 @@ document.getElementById("btn-refresh").addEventListener("click", ()=>{
   if(linhaAtual) abrirLeitura(linhaAtual);
   else renderSelecaoLinhas();
 });
+
+// ===================== HORÁRIOS PULADOS (chuva) =====================
+// Um horário pulado vale para TODAS as linhas no dia operacional. Fica em /horariosPulados/{data}_{horario}.
+// Só admin/gestor marcam ou desfazem; todo mundo lê (o fluxo de leitura simplesmente passa direto por ele).
+let horariosPulados = new Set();
+let unsubPulados = null;
+let dataPuladosEscutada = null;
+
+function escutarHorariosPulados(){
+  const dataOp = dataOperacionalHoje();
+  if(unsubPulados && dataPuladosEscutada === dataOp) return;
+  if(unsubPulados) unsubPulados();
+  dataPuladosEscutada = dataOp;
+  const q = query(collection(db,"horariosPulados"), where("data","==",dataOp));
+  unsubPulados = onSnapshot(q, (snap)=>{
+    const novo = new Set(snap.docs.map(d=>d.data().horario));
+    const mudou = novo.size !== horariosPulados.size || [...novo].some(h=>!horariosPulados.has(h));
+    horariosPulados = novo;
+    renderPainelChuva();
+    if(!mudou) return;
+    // só redesenha se o conjunto realmente mudou (evita piscar a tela de quem está lançando)
+    if(linhaAtual) renderizarLeitura(linhaAtual);
+    else {
+      const aba = document.querySelector('nav.tabs button[data-tab="selecionar"]');
+      if(aba && aba.classList.contains("active")) renderSelecaoLinhas();
+    }
+  }, ()=>{ /* sem permissão/rede: segue sem horários pulados */ });
+}
+
+function renderPainelChuva(){
+  const box = document.getElementById("painel-chuva");
+  if(!box) return;
+  if(!(papel==="admin" || papel==="gestor")){ box.innerHTML = ""; return; }
+
+  const dataOp = dataOperacionalHoje();
+  const candidatos = HORARIOS.filter(h=>!horariosPulados.has(h));
+  const chips = [...horariosPulados]
+    .sort((a,b)=>HORARIOS.indexOf(a)-HORARIOS.indexOf(b))
+    .map(h=>`<button class="chuva-chip" data-desfazer="${h}">🌧️ ${h} pulado · desfazer</button>`).join("");
+
+  box.innerHTML = `
+    <details class="chuva-box" ${horariosPulados.size ? "open" : ""}>
+      <summary>🌧️ Chuva · pular horário de leitura${horariosPulados.size ? ` (${horariosPulados.size})` : ""}</summary>
+      ${candidatos.length ? `
+        <div class="chuva-linha">
+          <select id="chuva-horario">${candidatos.map(h=>`<option value="${h}">${h}</option>`).join("")}</select>
+          <button id="btn-pular-horario">Pular</button>
+        </div>` : ""}
+      ${chips ? `<div class="chuva-chips">${chips}</div>` : ""}
+    </details>
+  `;
+
+  const btn = document.getElementById("btn-pular-horario");
+  if(btn) btn.addEventListener("click", ()=> pularHorario(document.getElementById("chuva-horario").value, dataOp));
+  box.querySelectorAll("[data-desfazer]").forEach(b=>{
+    b.addEventListener("click", ()=> desfazerPulo(b.dataset.desfazer, dataOp));
+  });
+}
+
+function pularHorario(horario, dataOp){
+  if(!confirm(`Pular a leitura das ${horario} de hoje (${dataFormatada(dataOp)}) para TODAS as linhas, por causa da chuva?`)) return;
+  setDoc(doc(db,"horariosPulados",`${dataOp}_${horario}`), {
+    data: dataOp, horario, motivo: "chuva",
+    por: usuario.email, timestamp: serverTimestamp()
+  }).catch(()=> toast("Não sincronizado ainda — será enviado quando voltar sinal."));
+  toast(`Leitura das ${horario} pulada 🌧️`);
+}
+
+function desfazerPulo(horario, dataOp){
+  deleteDoc(doc(db,"horariosPulados",`${dataOp}_${horario}`))
+    .catch(()=> toast("Não sincronizado ainda — será enviado quando voltar sinal."));
+  toast(`Leitura das ${horario} reativada`);
+}
 
 // ===================== CARREGAR LINHAS =====================
 // tenta o cache local primeiro (instantâneo, funciona offline) e atualiza em 2º plano se houver rede
@@ -612,6 +727,8 @@ function aplicarLinhas(snap){
 let selecaoRenderId = 0;
 async function renderSelecaoLinhas(){
   const meuId = ++selecaoRenderId;
+  escutarHorariosPulados(); // garante que a escuta acompanha a virada do dia operacional
+  renderPainelChuva();
   const grid = document.getElementById("grid-linhas");
   if(linhas.length===0){
     grid.innerHTML = `<div class="vazio-estado" style="grid-column:1/-1;"><div class="ic">🐂</div>Nenhuma linha cadastrada.<br>${papel==="admin" ? "Vá em Config para cadastrar." : "Peça ao admin para cadastrar as linhas."}</div>`;
@@ -661,6 +778,7 @@ async function proximoHorarioPendente(linhaObj){
   const dataOp = dataOperacionalHoje();
   const totalAtivos = curraisAtivos(linhaObj).length;
   for(const h of HORARIOS){
+    if(horariosPulados.has(h)) continue; // pulado por chuva — passa direto
     const q = query(collection(db,"leituras"),
       where("linhaId","==",linhaObj.id), where("data","==",dataOp), where("horario","==",h));
     let snap;
@@ -703,6 +821,7 @@ document.getElementById("btn-inverter-ordem").addEventListener("click", ()=>{
 });
 
 async function abrirLeitura(linhaObj){
+  escutarHorariosPulados();
   linhaAtual = linhaObj;
   document.getElementById("view-selecionar").classList.add("oculto");
   document.getElementById("view-leitura").classList.remove("oculto");
@@ -830,11 +949,66 @@ function aposAcaoDeLancamento(linhaObj){
   const feitos = Object.keys(leiturasAtuais).length;
   if(total > 0 && feitos >= total){
     toast(`Leitura das ${horarioAberto} da ${linhaObj.nome} concluída ✅`);
+    // fechou o último horário do ciclo (normalmente 06h; se o 06h foi pulado por chuva, vale o último não pulado)
+    const ultimoHorarioAtivo = [...HORARIOS].reverse().find(h=>!horariosPulados.has(h));
+    if(horarioAberto === ultimoHorarioAtivo) enviarEmailFimDeCiclo(linhaObj);
     linhaAtual = null;
     mostrarTab("selecionar");
   } else {
     desenharLeitura(linhaObj);
   }
+}
+
+// monta e dispara o e-mail-resumo do dia pra uma linha, quando ela termina o 06h (último horário do ciclo)
+// não trava nada se falhar ou não estiver configurado — é só um extra
+function enviarEmailFimDeCiclo(linhaObj){
+  if(!EMAIL_WEBHOOK_URL || EMAIL_WEBHOOK_URL.includes("COLE_AQUI")) return;
+
+  const dataOp = dataOperacionalHoje();
+  const q = query(collection(db,"leituras"), where("linhaId","==",linhaObj.id), where("data","==",dataOp));
+  getDocs(q).then(snap=>{
+    const regs = snap.docs.map(d=>d.data());
+    const porHorario = {};
+    regs.forEach(r=>{ (porHorario[r.horario] = porHorario[r.horario] || []).push(r); });
+
+    const resumoPorHorario = HORARIOS.map(h=>{
+      const lista = porHorario[h] || [];
+      if(horariosPulados.has(h) && lista.length===0) return `${h}: pulado (chuva)`;
+      if(lista.length===0) return `${h}: sem leituras`;
+      const contagens = {};
+      lista.forEach(r=>{ contagens[r.status] = (contagens[r.status]||0)+1; });
+      const partes = Object.entries(contagens).map(([s,n])=>`${rotuloStatus(h,s).texto} ${n}`).join(", ");
+      return `${h}: ${partes}`;
+    }).join("\n");
+
+    const problemas = regs.filter(r=> rotuloStatus(r.horario, r.status).cor !== "ok");
+    const listaProblemas = problemas.length ? problemas
+      .sort((a,b)=> (a.horario+a.curral).localeCompare(b.horario+b.curral))
+      .map(r=>{
+        const rt = rotuloStatus(r.horario, r.status);
+        const qtd = r.status==="inventory" && r.quantidade!=null ? ` (${r.quantidade}kg)` : "";
+        const obs = r.observacao ? ` — ${r.observacao}` : "";
+        return `- ${r.horario} · Curral ${r.curral}: ${rt.texto}${qtd}${obs}`;
+      }).join("\n") : "Nenhuma ocorrência — tudo certo o dia inteiro.";
+
+    const corpo =
+`Leitura de Cocho concluída — ${linhaObj.nome} — ${dataFormatada(dataOp)}
+
+Resumo por horário:
+${resumoPorHorario}
+
+Ocorrências (vazio / dry / inventory):
+${listaProblemas}`;
+
+    fetch(EMAIL_WEBHOOK_URL, {
+      method: "POST",
+      headers: {"Content-Type": "text/plain;charset=utf-8"}, // evita preflight CORS com o Apps Script
+      body: JSON.stringify({
+        assunto: `Leitura de Cocho · ${linhaObj.nome} · ${dataFormatada(dataOp)}`,
+        corpo
+      })
+    }).catch(()=>{}); // sem internet agora tudo bem — não é crítico, só não envia dessa vez
+  }).catch(()=>{});
 }
 
 // devolve emoji/texto/cor de exibição pra cada combinação horário+status

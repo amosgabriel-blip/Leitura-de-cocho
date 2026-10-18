@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel · Leitura de Cocho</title>
+<meta name="theme-color" content="#1A3530">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --verde-escuro:#1A3530; --verde-lage:#268A75; --laranja:#F97316; --vazio:#B3382C;
+    --roxo:#7C3AD6; --chuva:#1F4E79; --bg:#F7F5F0; --card:#fff; --linha:#E7E3D8;
+    --texto:#1F2A28; --texto-sub:#5C6B67;
+    --sombra:0 1px 2px rgba(26,53,48,.06), 0 6px 20px rgba(26,53,48,.08);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--texto); font-family:'Inter',sans-serif;}
+  h1,h2,h3,.display{font-family:'Manrope',sans-serif;}
+  .oculto{display:none !important;}
+
+  /* ---------- login ---------- */
+  .login-wrap{min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--verde-escuro); padding:24px;}
+  .login-card{background:#fff; border-radius:24px; padding:32px 28px; width:100%; max-width:380px; box-shadow:var(--sombra);}
+  .login-card h1{margin:0 0 4px; font-size:24px; color:var(--verde-escuro);}
+  .login-card h1 span{color:var(--laranja);}
+  .login-card p{margin:0 0 22px; color:var(--texto-sub); font-size:14px;}
+  .login-card label{display:block; font-size:12.5px; font-weight:600; color:var(--texto-sub); margin:12px 0 6px;}
+  .login-card input{width:100%; padding:12px 14px; border-radius:12px; border:1.5px solid var(--linha); font-size:15px; background:#FBFAF7;}
+  .login-card button{width:100%; margin-top:18px; border:none; border-radius:14px; padding:14px; font-size:15px; font-weight:700; font-family:'Manrope',sans-serif; background:var(--laranja); color:#fff; cursor:pointer;}
+  .msg-erro{color:var(--vazio); font-size:13px; margin-top:10px; min-height:16px;}
+
+  /* ---------- topo ---------- */
+  header.top{
+    background:var(--verde-escuro); color:#fff; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+    position:sticky; top:0; z-index:10;
+  }
+  header.top .marca{font-family:'Manrope',sans-serif; font-weight:800; font-size:19px;}
+  header.top .marca span{color:var(--laranja);}
+  header.top .sub{font-size:12.5px; color:#B9C7C3; margin-top:2px;}
+  .topo-acoes{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .ao-vivo{display:flex; align-items:center; gap:7px; font-size:12.5px; color:#DCE6E3;}
+  .ponto{width:9px; height:9px; border-radius:50%; background:#4ADE80; box-shadow:0 0 0 0 rgba(74,222,128,.7); animation:pulsa 2s infinite;}
+  .ponto.cache{background:#FBBF24; animation:none;}
+  @keyframes pulsa{70%{box-shadow:0 0 0 8px rgba(74,222,128,0);} 100%{box-shadow:0 0 0 0 rgba(74,222,128,0);}}
+  .btn-topo{background:rgba(255,255,255,.1); border:none; color:#fff; padding:8px 12px; border-radius:10px; font-size:12.5px; font-weight:600; cursor:pointer; text-decoration:none;}
+
+  main{padding:20px 24px 48px; max-width:1700px; margin:0 auto;}
+
+  /* ---------- filtros ---------- */
+  .filtros{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:18px;}
+  .filtros input[type=date], .filtros select{padding:9px 12px; border-radius:11px; border:1.5px solid var(--linha); font-size:14px; background:#fff; font-family:'Inter',sans-serif;}
+  .filtros label.chk{display:flex; align-items:center; gap:7px; font-size:13.5px; color:var(--texto-sub); font-weight:600; cursor:pointer;}
+
+  /* ---------- KPIs ---------- */
+  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:22px;}
+  .kpi{background:var(--card); border-radius:16px; padding:14px 16px; box-shadow:var(--sombra); border-top:5px solid var(--cor,#999);}
+  .kpi .h{font-family:'Manrope',sans-serif; font-weight:800; font-size:15px; color:var(--cor,#999); display:flex; justify-content:space-between;}
+  .kpi .n{font-family:'Manrope',sans-serif; font-weight:800; font-size:26px; margin-top:6px;}
+  .kpi .n small{font-size:13px; color:var(--texto-sub); font-weight:600;}
+  .kpi .s{font-size:12.5px; color:var(--texto-sub); margin-top:2px;}
+  .kpi .s b{color:var(--cor,#999);}
+  .barra{height:6px; background:var(--linha); border-radius:6px; margin-top:10px; overflow:hidden;}
+  .barra i{display:block; height:100%; background:var(--cor,#999);}
+  .kpi.pulado{background:#EAF2FB; border-top-color:var(--chuva);}
+  .kpi.pulado .n{font-size:18px; color:var(--chuva);}
+
+  /* ---------- cards de linha ---------- */
+  .grid-linhas{display:grid; grid-template-columns:repeat(auto-fill,minmax(430px,1fr)); gap:16px; align-items:start;}
+  .linha-card{background:var(--card); border-radius:18px; box-shadow:var(--sombra); overflow:hidden;}
+  .linha-head{display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:var(--verde-escuro); color:#fff;}
+  .linha-head .nome{font-family:'Manrope',sans-serif; font-weight:800; font-size:17px;}
+  .linha-head .meta{font-size:12px; color:#B9C7C3;}
+  .selo{font-size:11.5px; font-weight:700; padding:3px 9px; border-radius:20px; margin-left:6px;}
+  .selo.ruim{background:var(--vazio); color:#fff;}
+  .selo.ok{background:#2E7D5B; color:#fff;}
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  th{background:#F1EFE8; color:var(--texto-sub); font-weight:700; padding:7px 4px; text-align:center; position:sticky; top:0;}
+  th:first-child, td:first-child{text-align:left; padding-left:14px; width:62px;}
+  th.chuva{background:#DCEAF7; color:var(--chuva);}
+  td{padding:5px 3px; border-top:1px solid var(--linha); text-align:center;}
+  td.curral{font-weight:700; font-family:'Manrope',sans-serif;}
+  .cel{display:inline-block; min-width:54px; padding:4px 6px; border-radius:8px; font-weight:700; font-size:11.5px;}
+  .cel.ok{background:#E1F0EB; color:#1E6E5E;}
+  .cel.no{background:#F6E1DE; color:#8F2C22;}
+  .cel.inv{background:#EDE3FA; color:#5B21B6;}
+  .cel.crit{background:var(--vazio); color:#fff;}
+  .cel.vaz{color:#C9C6BB; font-weight:500;}
+  .cel.chuva{background:#EAF2FB; color:var(--chuva);}
+  .obs{cursor:help;}
+  .linha-foot{padding:9px 16px; font-size:12px; color:var(--texto-sub); border-top:1px solid var(--linha); background:#FBFAF7;}
+  .vazio-estado{grid-column:1/-1; text-align:center; padding:60px 20px; color:var(--texto-sub);}
+  .legenda{display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--texto-sub); margin:-6px 0 16px;}
+
+  @media (max-width:520px){
+    .grid-linhas{grid-template-columns:1fr;}
+    main{padding:14px 12px 40px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== LOGIN ===== -->
+<div id="tela-login" class="login-wrap">
+  <div class="login-card">
+    <h1>Painel de <span>Cocho</span></h1>
+    <p>Confinamento · O.L</p>
+    <label>E-mail</label>
+    <input id="login-email" type="email" autocomplete="username">
+    <label>Senha</label>
+    <input id="login-senha" type="password" autocomplete="current-password">
+    <button id="btn-login">Entrar</button>
+    <div class="msg-erro" id="login-erro"></div>
+  </div>
+</div>
+
+<!-- ===== PAINEL ===== -->
+<div id="tela-painel" class="oculto">
+  <header class="top">
+    <div>
+      <div class="marca">Leitura de <span>Cocho</span> · Painel</div>
+      <div class="sub" id="sub-usuario">—</div>
+    </div>
+    <div class="topo-acoes">
+      <div class="ao-vivo"><span class="ponto" id="ponto"></span><span id="txt-atualizado">Conectando…</span></div>
+      <button class="btn-topo" id="btn-tela-cheia">⛶ Tela cheia</button>
+      <a class="btn-topo" href="index.html">← App</a>
+      <button class="btn-topo" id="btn-sair">Sair</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="filtros">
+      <input type="date" id="f-data">
+      <select id="f-linha"><option value="">Todas as linhas</option></select>
+      <label class="chk"><input type="checkbox" id="f-ocorr"> Só currais com ocorrência</label>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="legenda">
+      <span><span class="cel ok">Cheio / Crumbs</span></span>
+      <span><span class="cel no">Vazio / Dry</span></span>
+      <span><span class="cel crit">Vazio às 18h/20h</span></span>
+      <span><span class="cel inv">Inventory</span></span>
+      <span><span class="cel chuva">🌧️ Pulado</span></span>
+      <span>📝 = tem observação (passe o mouse)</span>
+    </div>
+
+    <div class="grid-linhas" id="grid-linhas"></div>
+  </main>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut }
+  from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+  collection, query, where, onSnapshot }
+  from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+// mesma configuração do app (mesmo projeto Firebase)
+const firebaseConfig = {
+  apiKey: "AIzaSyAB4riRjWJ3f2OK7Fv2Efy5kuU_CWhRt5k",
+  authDomain: "leituracocho-9ac94.firebaseapp.com",
+  projectId: "leituracocho-9ac94",
+  storageBucket: "leituracocho-9ac94.firebasestorage.app",
+  messagingSenderId: "540806557891",
+  appId: "1:540806557891:web:bac2d9e7a4bbf1a9c2b276"
+};
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = initializeFirestore(fbApp, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+});
+
+const HORARIOS = ["18h","20h","00h","03h","06h"];
+// escala de severidade (mesma lógica do relatório em PDF)
+const COR_HORARIO = {"18h":"#D61919","20h":"#F97316","00h":"#E6A80B","03h":"#7CBF5A","06h":"#1A3530"};
+const $ = (id)=>document.getElementById(id);
+
+// ---------- estado ----------
+let linhas = [];
+let leituras = [];
+let pulados = new Set();
+let unsubs = [];
+let unsubLinhas = null;
+
+// ---------- helpers ----------
+function isoData(d){
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+function dataOperacionalHoje(){
+  const d = new Date();
+  if(d.getHours() < 8) d.setDate(d.getDate()-1); // mesma virada do app (06h vai até 07h59)
+  return isoData(d);
+}
+function esc(s){
+  return String(s ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function curraisAtivos(l){
+  const v = l.curraisVazios || [];
+  return (l.currais||[]).filter(c=>!v.includes(c));
+}
+// "falta de ração" em cada horário: vazio (ou dry no 06h)
+function ehFalta(h, status){ return h==="06h" ? status==="dry" : status==="vazio"; }
+function ehOk(h, status){ return h==="06h" ? status==="crumbs" : status==="cheio"; }
+function textoStatus(h, status){
+  if(h==="06h") return {crumbs:"Crumbs", dry:"Dry", inventory:"Inventory"}[status] || status;
+  return {cheio:"Cheio", vazio:"Vazio"}[status] || status;
+}
+
+// ---------- login ----------
+$("btn-login").addEventListener("click", async ()=>{
+  const email = $("login-email").value.trim(), senha = $("login-senha").value;
+  $("login-erro").textContent = "";
+  if(!email || !senha){ $("login-erro").textContent = "Preencha e-mail e senha."; return; }
+  try{ await signInWithEmailAndPassword(auth, email, senha); }
+  catch(e){
+    console.error("Erro de login:", e.code);
+    $("login-erro").textContent = e.code==="auth/network-request-failed"
+      ? "Sem conexão — o primeiro login exige internet." : "E-mail ou senha inválidos.";
+  }
+});
+$("btn-sair").addEventListener("click", ()=>signOut(auth));
+
+onAuthStateChanged(auth, (user)=>{
+  if(user){
+    $("tela-login").classList.add("oculto");
+    $("tela-painel").classList.remove("oculto");
+    $("sub-usuario").textContent = user.email;
+    if(!$("f-data").value) $("f-data").value = dataOperacionalHoje();
+    iniciarLinhas();
+    iniciarEscutasDoDia();
+  } else {
+    pararEscutas();
+    if(unsubLinhas){ unsubLinhas(); unsubLinhas = null; }
+    $("tela-painel").classList.add("oculto");
+    $("tela-login").classList.remove("oculto");
+  }
+});
+
+// ---------- escutas em tempo real ----------
+function iniciarLinhas(){
+  if(unsubLinhas) return;
+  unsubLinhas = onSnapshot(collection(db,"linhas"), (snap)=>{
+    linhas = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    linhas.sort((a,b)=>String(a.nome).localeCompare(String(b.nome),"pt-BR",{numeric:true,sensitivity:"base"}));
+    const atual = $("f-linha").value;
+    $("f-linha").innerHTML = '<option value="">Todas as linhas</option>' +
+      linhas.map(l=>`<option value="${esc(l.id)}">${esc(l.nome)}</option>`).join("");
+    $("f-linha").value = linhas.some(l=>l.id===atual) ? atual : "";
+    agendarRender();
+  }, ()=>{});
+}
+
+function pararEscutas(){ unsubs.forEach(u=>u()); unsubs = []; }
+
+function iniciarEscutasDoDia(){
+  pararEscutas();
+  const data = $("f-data").value;
+  if(!data) return;
+  // filtros de igualdade num único campo — não exigem índice composto
+  unsubs.push(onSnapshot(query(collection(db,"leituras"), where("data","==",data)), (snap)=>{
+    leituras = snap.docs.map(d=>d.data());
+    marcarAtualizado(snap.metadata.fromCache);
+    agendarRender();
+  }, (err)=>{
+    $("txt-atualizado").textContent = "Erro ao carregar leituras";
+    console.error(err);
+  }));
+  unsubs.push(onSnapshot(query(collection(db,"horariosPulados"), where("data","==",data)), (snap)=>{
+    pulados = new Set(snap.docs.map(d=>d.data().horario));
+    agendarRender();
+  }, ()=>{ pulados = new Set(); agendarRender(); }));
+}
+
+function marcarAtualizado(doCache){
+  const hora = new Date().toLocaleTimeString("pt-BR");
+  $("ponto").classList.toggle("cache", !!doCache);
+  $("txt-atualizado").textContent = doCache ? `Dados do cache · ${hora}` : `Ao vivo · atualizado ${hora}`;
+}
+
+// ---------- filtros / tela cheia ----------
+$("f-data").addEventListener("change", ()=>{ leituras = []; pulados = new Set(); iniciarEscutasDoDia(); agendarRender(); });
+$("f-linha").addEventListener("change", agendarRender);
+$("f-ocorr").addEventListener("change", agendarRender);
+$("btn-tela-cheia").addEventListener("click", ()=>{
+  if(document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen?.();
+});
+
+// ---------- render ----------
+let renderPendente = false;
+function agendarRender(){
+  if(renderPendente) return;
+  renderPendente = true;
+  requestAnimationFrame(()=>{ renderPendente = false; render(); });
+}
+
+function render(){
+  const filtroLinha = $("f-linha").value;
+  const soOcorr = $("f-ocorr").checked;
+  const lista = linhas.filter(l=>!filtroLinha || l.id===filtroLinha);
+
+  // índice: linhaId -> curral -> horario -> leitura
+  const idx = {};
+  leituras.forEach(r=>{
+    if(!idx[r.linhaId]) idx[r.linhaId] = {};
+    if(!idx[r.linhaId][r.curral]) idx[r.linhaId][r.curral] = {};
+    idx[r.linhaId][r.curral][r.horario] = r;
+  });
+
+  renderKpis(lista, idx);
+  renderLinhas(lista, idx, soOcorr);
+}
+
+function renderKpis(lista, idx){
+  const totalAtivos = lista.reduce((s,l)=>s + curraisAtivos(l).length, 0);
+  let html = "";
+
+  HORARIOS.forEach(h=>{
+    const cor = COR_HORARIO[h];
+    if(pulados.has(h)){
+      html += `<div class="kpi pulado" style="--cor:${cor}"><div class="h">${h}</div><div class="n">🌧️ Pulado</div><div class="s">por chuva</div></div>`;
+      return;
+    }
+    let lancados = 0, falta = 0;
+    lista.forEach(l=>{
+      curraisAtivos(l).forEach(c=>{
+        const r = idx[l.id]?.[c]?.[h];
+        if(r){ lancados++; if(ehFalta(h, r.status)) falta++; }
+      });
+    });
+    const pct = totalAtivos ? Math.round(lancados/totalAtivos*100) : 0;
+    html += `<div class="kpi" style="--cor:${cor}">
+      <div class="h"><span>${h}</span><span>${pct}%</span></div>
+      <div class="n">${lancados}<small> / ${totalAtivos}</small></div>
+      <div class="s"><b>${falta}</b> ${h==="06h" ? "Dry" : "sem ração"}</div>
+      <div class="barra"><i style="width:${pct}%"></i></div>
+    </div>`;
+  });
+
+  // inventory (06h): quantidade de currais e total de kg
+  let invN = 0, invKg = 0;
+  lista.forEach(l=>{
+    curraisAtivos(l).forEach(c=>{
+      const r = idx[l.id]?.[c]?.["06h"];
+      if(r && r.status==="inventory"){ invN++; invKg += Number(r.quantidade)||0; }
+    });
+  });
+  html += `<div class="kpi" style="--cor:var(--roxo)">
+    <div class="h"><span>Inventory</span><span>06h</span></div>
+    <div class="n">${invN}<small> currais</small></div>
+    <div class="s"><b>${invKg.toLocaleString("pt-BR")} kg</b> sobrando</div>
+  </div>`;
+
+  $("kpis").innerHTML = html;
+}
+
+function celulaHtml(h, r){
+  if(pulados.has(h) && !r) return `<span class="cel chuva">🌧️</span>`;
+  if(!r) return `<span class="cel vaz">·</span>`;
+  const obs = r.observacao ? ` <span class="obs" title="${esc(r.observacao)}">📝</span>` : "";
+  const dica = esc(`${r.operador ? r.operador.split("@")[0] : ""}`);
+  if(r.status==="inventory"){
+    const q = r.quantidade!=null ? ` ${Number(r.quantidade).toLocaleString("pt-BR")}kg` : "";
+    return `<span class="cel inv" title="${dica}">Inv${q}</span>${obs}`;
+  }
+  if(ehFalta(h, r.status)){
+    const critico = (h==="18h" || h==="20h") ? "crit" : "no";
+    return `<span class="cel ${critico}" title="${dica}">${textoStatus(h, r.status)}</span>${obs}`;
+  }
+  return `<span class="cel ok" title="${dica}">${textoStatus(h, r.status)}</span>${obs}`;
+}
+
+function renderLinhas(lista, idx, soOcorr){
+  const grid = $("grid-linhas");
+  if(lista.length===0){
+    grid.innerHTML = `<div class="vazio-estado">Nenhuma linha cadastrada.</div>`;
+    return;
+  }
+
+  grid.innerHTML = lista.map(l=>{
+    const ativos = curraisAtivos(l);
+    const mapa = idx[l.id] || {};
+
+    // ocorrência = qualquer leitura que não seja "ok" (vazio, dry ou inventory)
+    const temOcorrencia = (c)=> HORARIOS.some(h=>{
+      const r = mapa[c]?.[h];
+      return r && !ehOk(h, r.status);
+    });
+    const linhasVisiveis = soOcorr ? ativos.filter(temOcorrencia) : ativos;
+
+    let lancados = 0, ocorrencias = 0;
+    ativos.forEach(c=>{
+      HORARIOS.forEach(h=>{
+        const r = mapa[c]?.[h];
+        if(r){ lancados++; if(!ehOk(h, r.status)) ocorrencias++; }
+      });
+    });
+    const horariosAtivos = HORARIOS.filter(h=>!pulados.has(h)).length;
+    const esperado = ativos.length * horariosAtivos;
+
+    const cabecalho = HORARIOS.map(h=>`<th class="${pulados.has(h)?"chuva":""}" style="${pulados.has(h)?"":`border-bottom:3px solid ${COR_HORARIO[h]}`}">${h}${pulados.has(h)?" 🌧️":""}</th>`).join("");
+    const corpo = linhasVisiveis.map(c=>`
+      <tr>
+        <td class="curral">${esc(l.nome)}-${esc(c)}</td>
+        ${HORARIOS.map(h=>`<td>${celulaHtml(h, mapa[c]?.[h])}</td>`).join("")}
+      </tr>`).join("");
+
+    const semAnimais = (l.curraisVazios||[]).length;
+    return `
+      <div class="linha-card">
+        <div class="linha-head">
+          <div>
+            <div class="nome">${esc(l.nome)}</div>
+            <div class="meta">${ativos.length} currais${semAnimais ? ` · ${semAnimais} sem animais` : ""}</div>
+          </div>
+          <div>
+            <span class="selo ${ocorrencias ? "ruim" : "ok"}">${ocorrencias} ocorrência${ocorrencias===1?"":"s"}</span>
+          </div>
+        </div>
+        ${linhasVisiveis.length ? `
+        <table>
+          <thead><tr><th>Curral</th>${cabecalho}</tr></thead>
+          <tbody>${corpo}</tbody>
+        </table>` : `<div class="linha-foot" style="border-top:none; text-align:center; padding:22px;">${ativos.length ? "Nenhuma ocorrência nesta linha 👍" : "Linha sem animais"}</div>`}
+        <div class="linha-foot">${lancados} de ${esperado} leituras lançadas${horariosAtivos<HORARIOS.length ? " (sem os horários pulados)" : ""}</div>
+      </div>`;
+  }).join("");
+}
+
+// atualiza a virada do dia operacional sozinho (painel deixado aberto numa TV)
+setInterval(()=>{
+  if(!auth.currentUser) return;
+  const hoje = dataOperacionalHoje();
+  const ultimo = $("f-data").dataset.auto;
+  if($("f-data").value === ultimo && ultimo !== hoje){
+    $("f-data").value = hoje;
+    iniciarEscutasDoDia();
+  }
+  $("f-data").dataset.auto = $("f-data").value === hoje ? hoje : "";
+}, 60000);
+$("f-data").dataset.auto = dataOperacionalHoje();
+</script>
+</body>
+</html>

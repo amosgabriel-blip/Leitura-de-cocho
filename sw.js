@@ -1,6 +1,6 @@
-const CACHE = "leitura-cocho-v3";
+const CACHE = "leitura-cocho-v4";
 const ARQUIVOS = [
-  "./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png",
+  "./", "./index.html", "./painel.html", "./manifest.json", "./icon-192.png", "./icon-512.png",
   "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"
 ];

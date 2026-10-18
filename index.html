@@ -615,9 +615,21 @@ function mostrarTab(tab){
   if(tab==="alertas") abrirAlertas();
   if(tab==="config") renderConfig();
 }
-document.getElementById("btn-refresh").addEventListener("click", ()=>{
-  if(linhaAtual) abrirLeitura(linhaAtual);
-  else renderSelecaoLinhas();
+document.getElementById("btn-refresh").addEventListener("click", async ()=>{
+  const btn = document.getElementById("btn-refresh");
+  if(btn.disabled) return;
+  btn.disabled = true;
+  try{
+    // 1) traz do servidor as leituras do dia (atualiza o cache local, então tudo que lê do cache já vem completo)
+    try{ await getDocs(query(collection(db,"leituras"), where("data","==",dataOperacionalHoje()))); }
+    catch(e){ toast("Sem conexão — mostrando dados deste aparelho"); }
+    // 2) recarrega a tela em que a pessoa está
+    const tabAtiva = document.querySelector("nav.tabs button.active")?.dataset.tab;
+    if(!document.getElementById("view-leitura").classList.contains("oculto") && linhaAtual) await abrirLeitura(linhaAtual);
+    else if(tabAtiva==="historico") await carregarHistorico();
+    else if(tabAtiva==="alertas") await abrirAlertas();
+    else await renderSelecaoLinhas();
+  } finally { btn.disabled = false; }
 });
 
 // ===================== HORÁRIOS PULADOS (chuva) =====================

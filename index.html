@@ -90,6 +90,36 @@
   nav.tabs button .ic{font-size:19px;}
   nav.tabs button.active{color:var(--verde-lage-d);}
 
+  /* ---------- aba Hoje ---------- */
+  .hoje-vivo{display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--texto-sub);}
+  .hoje-ponto{width:8px; height:8px; border-radius:50%; background:#22C55E;}
+  .hoje-ponto.cache{background:#F59E0B;}
+  .hoje-chk{display:flex; align-items:center; gap:7px; font-size:13px; color:var(--texto-sub); font-weight:600; margin:2px 0 12px;}
+  .hoje-kpis{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px;}
+  .hoje-kpi{background:#fff; border-radius:12px; padding:9px 10px; border-top:4px solid var(--cor,#999); box-shadow:0 1px 3px rgba(26,53,48,.08);}
+  .hoje-kpi .h{font-weight:800; font-size:13px; color:var(--cor,#999); display:flex; justify-content:space-between;}
+  .hoje-kpi .n{font-weight:800; font-size:20px; margin-top:2px;}
+  .hoje-kpi .n small{font-size:11px; color:var(--texto-sub);}
+  .hoje-kpi .s{font-size:11px; color:var(--texto-sub);}
+  .hoje-kpi .s b{color:var(--cor,#999);}
+  .hoje-kpi.pulado{background:#EAF2FB; --cor:#1F4E79;}
+  .hoje-card{background:#fff; border-radius:14px; margin-bottom:12px; overflow:hidden; box-shadow:0 1px 3px rgba(26,53,48,.08);}
+  .hoje-head{display:flex; justify-content:space-between; align-items:center; padding:9px 12px; background:var(--verde-escuro); color:#fff; font-weight:800;}
+  .hoje-head small{font-weight:600; color:#B9C7C3;}
+  .hoje-card table{width:100%; border-collapse:collapse; font-size:12px;}
+  .hoje-card th{background:#F1EFE8; color:var(--texto-sub); padding:6px 2px; text-align:center; font-weight:700;}
+  .hoje-card th:first-child, .hoje-card td:first-child{text-align:left; padding-left:10px;}
+  .hoje-card td{padding:4px 1px; border-top:1px solid var(--linha); text-align:center;}
+  .hoje-card td.c{font-weight:800;}
+  .hc{display:inline-block; min-width:30px; padding:3px 2px; border-radius:7px; font-weight:700; font-size:11px;}
+  .hc.ok{background:#E1F0EB; color:#1E6E5E;}
+  .hc.no{background:#F6E1DE; color:#8F2C22;}
+  .hc.crit{background:#B3382C; color:#fff;}
+  .hc.inv{background:#EDE3FA; color:#5B21B6;}
+  .hc.ch{background:#EAF2FB; color:#1F4E79;}
+  .hc.vz{color:#C9C6BB; font-weight:500;}
+  .hoje-foot{padding:7px 12px; font-size:11.5px; color:var(--texto-sub); border-top:1px solid var(--linha); background:#FBFAF7;}
+
   /* ---------- seleção de linha ---------- */
   .grid-linhas{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:6px;}
   .card-linha{
@@ -334,6 +364,22 @@
         <div id="leitura-conteudo"></div>
       </section>
 
+      <!-- ---- VIEW: hoje (leituras do dia ao vivo, somente leitura) ---- -->
+      <section id="view-hoje" class="oculto">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <h3 style="color:var(--verde-escuro); margin:0;">Leituras do dia</h3>
+          <span class="hoje-vivo"><span class="hoje-ponto" id="hoje-ponto"></span><span id="hoje-atualizado">—</span></span>
+        </div>
+        <div class="filtros">
+          <input type="date" id="hoje-data">
+          <select id="hoje-linha"><option value="">Todas as linhas</option></select>
+        </div>
+        <label class="hoje-chk"><input type="checkbox" id="hoje-ocorr"> Só currais com ocorrência</label>
+        <div class="hoje-kpis" id="hoje-kpis"></div>
+        <div id="hoje-linhas"></div>
+        <a class="link-ordem" href="painel.html" target="_blank" rel="noopener" style="text-decoration:underline; margin-top:14px;">🖥️ Versão para tela grande / TV</a>
+      </section>
+
       <!-- ---- VIEW: histórico ---- -->
       <section id="view-historico" class="oculto">
         <h3 style="color:var(--verde-escuro); margin-bottom:12px;">Histórico</h3>
@@ -354,7 +400,6 @@
           <button class="btn btn-outline btn-exportar" id="btn-exportar-excel">⭳ Excel</button>
           <button class="btn btn-outline btn-exportar" id="btn-exportar-pdf">📄 PDF</button>
         </div>
-        <a class="link-ordem" href="painel.html" target="_blank" rel="noopener" style="text-decoration:underline; margin-top:6px;">🖥️ Abrir painel web (tela grande, ao vivo)</a>
         <div id="lista-historico" style="margin-top:18px;"></div>
       </section>
 
@@ -425,6 +470,7 @@
     <nav class="tabs">
       <div class="row">
         <button data-tab="selecionar" class="active"><span class="ic">🐂</span>Lançar</button>
+        <button data-tab="hoje"><span class="ic">📊</span>Hoje</button>
         <button data-tab="historico"><span class="ic">📋</span>Histórico</button>
         <button data-tab="alertas" id="tab-alertas" class="oculto"><span class="ic">🚨</span>Alertas</button>
         <button data-tab="config" id="tab-config" class="oculto"><span class="ic">⚙️</span>Config</button>
@@ -591,7 +637,7 @@ onAuthStateChanged(auth, async (user)=>{
   } else {
     usuario = null;
     if(unsubAlertas){ unsubAlertas(); unsubAlertas = null; }
-    if(unsubPulados){ unsubPulados(); unsubPulados = null; dataPuladosEscutada = null; }
+    if(unsubPulados){ unsubPulados(); unsubPulados = null; dataPuladosEscutada = null; } pararEscutaHoje();
     horariosPulados = new Set();
     document.getElementById("tela-app").classList.add("oculto");
     document.getElementById("tela-login").classList.remove("oculto");
@@ -604,13 +650,16 @@ document.querySelectorAll("nav.tabs button").forEach(btn=>{
 });
 function mostrarTab(tab){
   if(tab!=="alertas" && unsubAlertas){ unsubAlertas(); unsubAlertas = null; }
+  if(tab!=="hoje") pararEscutaHoje();
   document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("active", b.dataset.tab===tab));
   document.getElementById("view-selecionar").classList.toggle("oculto", tab!=="selecionar");
   document.getElementById("view-leitura").classList.toggle("oculto", true);
+  document.getElementById("view-hoje").classList.toggle("oculto", tab!=="hoje");
   document.getElementById("view-historico").classList.toggle("oculto", tab!=="historico");
   document.getElementById("view-alertas").classList.toggle("oculto", tab!=="alertas");
   document.getElementById("view-config").classList.toggle("oculto", tab!=="config");
   if(tab==="selecionar") renderSelecaoLinhas();
+  if(tab==="hoje") abrirHoje();
   if(tab==="historico") abrirHistorico();
   if(tab==="alertas") abrirAlertas();
   if(tab==="config") renderConfig();
@@ -626,6 +675,7 @@ document.getElementById("btn-refresh").addEventListener("click", async ()=>{
     // 2) recarrega a tela em que a pessoa está
     const tabAtiva = document.querySelector("nav.tabs button.active")?.dataset.tab;
     if(!document.getElementById("view-leitura").classList.contains("oculto") && linhaAtual) await abrirLeitura(linhaAtual);
+    else if(tabAtiva==="hoje") abrirHoje();
     else if(tabAtiva==="historico") await carregarHistorico();
     else if(tabAtiva==="alertas") await abrirAlertas();
     else await renderSelecaoLinhas();
@@ -1293,6 +1343,100 @@ function editarObservacao(linhaObj, horario, curral){
 
   toast(nova.trim() ? "Observação salva 📝" : "Observação removida");
   desenharLeitura(linhaObj);
+}
+
+
+// ===================== ABA HOJE (leituras do dia, ao vivo) =====================
+let unsubHoje = null, unsubHojePulados = null;
+let hojeLeituras = [], hojePulados = new Set();
+const COR_HOR = {"18h":"#D61919","20h":"#F97316","00h":"#E6A80B","03h":"#7CBF5A","06h":"#1A3530"};
+
+function abrirHoje(){
+  const inp = document.getElementById("hoje-data");
+  if(!inp.value) inp.value = dataOperacionalHoje();
+  // lista de linhas no filtro
+  const sel = document.getElementById("hoje-linha"), atual = sel.value;
+  sel.innerHTML = '<option value="">Todas as linhas</option>' + linhas.map(l=>`<option value="${l.id}">${l.nome}</option>`).join("");
+  sel.value = linhas.some(l=>l.id===atual) ? atual : "";
+  iniciarEscutaHoje();
+}
+function pararEscutaHoje(){
+  if(unsubHoje){ unsubHoje(); unsubHoje = null; }
+  if(unsubHojePulados){ unsubHojePulados(); unsubHojePulados = null; }
+}
+function iniciarEscutaHoje(){
+  pararEscutaHoje();
+  const data = document.getElementById("hoje-data").value;
+  if(!data) return;
+  unsubHoje = onSnapshot(query(collection(db,"leituras"), where("data","==",data)), (snap)=>{
+    hojeLeituras = snap.docs.map(d=>d.data());
+    document.getElementById("hoje-ponto").classList.toggle("cache", snap.metadata.fromCache);
+    document.getElementById("hoje-atualizado").textContent =
+      (snap.metadata.fromCache ? "cache · " : "ao vivo · ") + new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+    renderHoje();
+  }, ()=>{ document.getElementById("hoje-atualizado").textContent = "erro ao carregar"; });
+  unsubHojePulados = onSnapshot(query(collection(db,"horariosPulados"), where("data","==",data)), (snap)=>{
+    hojePulados = new Set(snap.docs.map(d=>d.data().horario));
+    renderHoje();
+  }, ()=>{ hojePulados = new Set(); renderHoje(); });
+}
+["hoje-data"].forEach(id=>document.getElementById(id).addEventListener("change", ()=>{ hojeLeituras=[]; hojePulados=new Set(); iniciarEscutaHoje(); renderHoje(); }));
+["hoje-linha","hoje-ocorr"].forEach(id=>document.getElementById(id).addEventListener("change", renderHoje));
+
+function hojeCelula(h, r){
+  if(!r) return hojePulados.has(h) ? '<span class="hc ch">🌧️</span>' : '<span class="hc vz">·</span>';
+  const obs = r.observacao ? `<span title="${String(r.observacao).replace(/"/g,"&quot;")}">📝</span>` : "";
+  const rot = rotuloStatus(h, r.status);
+  if(rot.cor==="warn"){
+    const kg = r.quantidade!=null ? ` ${Number(r.quantidade).toLocaleString("pt-BR")}` : "";
+    return `<span class="hc inv">${kg ? kg.trim()+"kg" : "Inv"}</span>${obs}`;
+  }
+  if(rot.cor==="no") return `<span class="hc ${(h==="18h"||h==="20h")?"crit":"no"}">${rot.texto}</span>${obs}`;
+  return `<span class="hc ok">${rot.texto}</span>${obs}`;
+}
+
+function renderHoje(){
+  const cont = document.getElementById("hoje-linhas");
+  if(!cont || document.getElementById("view-hoje").classList.contains("oculto")) return;
+  const fl = document.getElementById("hoje-linha").value;
+  const soOcorr = document.getElementById("hoje-ocorr").checked;
+  const lista = linhas.filter(l=>!fl || l.id===fl);
+
+  const idx = {};
+  hojeLeituras.forEach(r=>{ ((idx[r.linhaId] ||= {})[r.curral] ||= {})[r.horario] = r; });
+  const falta = (h,st)=> h==="06h" ? st==="dry" : st==="vazio";
+  const total = lista.reduce((n,l)=>n+curraisAtivos(l).length,0);
+
+  // KPIs por horário
+  let k = "";
+  HORARIOS.forEach(h=>{
+    if(hojePulados.has(h)){ k += `<div class="hoje-kpi pulado" style="--cor:${COR_HOR[h]}"><div class="h">${h}</div><div class="n" style="font-size:15px;">🌧️ Pulado</div></div>`; return; }
+    let lanc=0, f=0;
+    lista.forEach(l=>curraisAtivos(l).forEach(c=>{ const r = idx[l.id]?.[c]?.[h]; if(r){ lanc++; if(falta(h,r.status)) f++; } }));
+    k += `<div class="hoje-kpi" style="--cor:${COR_HOR[h]}"><div class="h"><span>${h}</span><span>${total?Math.round(lanc/total*100):0}%</span></div>
+      <div class="n">${lanc}<small>/${total}</small></div><div class="s"><b>${f}</b> ${h==="06h"?"Dry":"sem ração"}</div></div>`;
+  });
+  let invN=0, invKg=0;
+  lista.forEach(l=>curraisAtivos(l).forEach(c=>{ const r = idx[l.id]?.[c]?.["06h"]; if(r && r.status==="inventory"){ invN++; invKg += Number(r.quantidade)||0; } }));
+  k += `<div class="hoje-kpi" style="--cor:#7C3AD6"><div class="h"><span>Inventory</span><span>06h</span></div><div class="n">${invN}<small> currais</small></div><div class="s"><b>${invKg.toLocaleString("pt-BR")} kg</b></div></div>`;
+  document.getElementById("hoje-kpis").innerHTML = k;
+
+  // cards por linha
+  if(!lista.length){ cont.innerHTML = '<div class="vazio-estado"><div class="ic">🐂</div>Nenhuma linha cadastrada.</div>'; return; }
+  cont.innerHTML = lista.map(l=>{
+    const ativos = curraisAtivos(l), mapa = idx[l.id] || {};
+    const ocorr = c=>HORARIOS.some(h=>{ const r = mapa[c]?.[h]; return r && rotuloStatus(h,r.status).cor!=="ok"; });
+    let nOc = 0, lanc = 0;
+    ativos.forEach(c=>HORARIOS.forEach(h=>{ const r = mapa[c]?.[h]; if(r){ lanc++; if(rotuloStatus(h,r.status).cor!=="ok") nOc++; } }));
+    const vis = soOcorr ? ativos.filter(ocorr) : ativos;
+    const esperado = ativos.length * HORARIOS.filter(h=>!hojePulados.has(h)).length;
+    const cab = HORARIOS.map(h=>`<th style="border-bottom:3px solid ${COR_HOR[h]}">${h}</th>`).join("");
+    const corpo = vis.map(c=>`<tr><td class="c">${l.nome}-${c}</td>${HORARIOS.map(h=>`<td>${hojeCelula(h, mapa[c]?.[h])}</td>`).join("")}</tr>`).join("");
+    return `<div class="hoje-card">
+      <div class="hoje-head"><span>${l.nome}</span><small>${nOc} ocorrência${nOc===1?"":"s"}</small></div>
+      ${vis.length ? `<table><thead><tr><th>Curral</th>${cab}</tr></thead><tbody>${corpo}</tbody></table>` : `<div class="hoje-foot" style="text-align:center; padding:16px;">${ativos.length ? "Nenhuma ocorrência 👍" : "Linha sem animais"}</div>`}
+      <div class="hoje-foot">${lanc} de ${esperado} leituras lançadas</div></div>`;
+  }).join("");
 }
 
 // ===================== HISTÓRICO =====================

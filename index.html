@@ -77,6 +77,14 @@
   .btn-primary:active{background:var(--laranja-d);}
   .msg-erro{color:var(--vazio); font-size:13px; margin-top:10px; min-height:16px;}
 
+  /* ---------- barra de envio ---------- */
+  .envio{position:fixed; top:0; left:0; right:0; z-index:60; pointer-events:none; opacity:0; transition:opacity .2s;}
+  .envio.show{opacity:1;}
+  .envio .trilho{height:5px; background:rgba(26,53,48,.15);}
+  .envio #envio-fill{height:100%; width:0; background:var(--laranja); transition:width .3s;}
+  .envio.ok #envio-fill{background:#22C55E;}
+  .envio.offline #envio-fill{background:#F59E0B;}
+  .envio #envio-txt{display:inline-block; margin:6px 0 0 8px; background:var(--verde-escuro); color:#fff; font-size:12px; font-weight:600; padding:4px 10px; border-radius:20px;}
   /* ---------- tabs inferiores ---------- */
   nav.tabs{
     position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid var(--linha);
@@ -333,6 +341,7 @@
 
   <!-- ===== APP (logado) ===== -->
   <div id="tela-app" class="oculto">
+    <div class="envio" id="envio-barra"><div class="trilho"><div id="envio-fill"></div></div><span id="envio-txt"></span></div>
     <header class="top">
       <div>
         <div class="marca">Leitura de <span>Cocho</span></div>
@@ -492,7 +501,7 @@ import {
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   collection, doc, getDoc, getDocs, getDocFromCache, getDocsFromCache,
-  addDoc, setDoc, deleteDoc,
+  addDoc, setDoc as _setDoc, deleteDoc as _deleteDoc,
   query, where, orderBy, onSnapshot, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
@@ -531,6 +540,39 @@ let unsubHistorico = null;
 let unsubAlertas = null;
 
 // ===================== HELPERS =====================
+
+// ===================== BARRA DE ENVIO PARA A NUVEM =====================
+// toda gravação passa por aqui: conta pendentes e mostra o progresso até o servidor confirmar
+let envPend = 0, envTotal = 0, envFeitos = 0, envTimer = null;
+function envAtualizar(){
+  const box = document.getElementById("envio-barra"); if(!box) return;
+  const fill = document.getElementById("envio-fill"), txt = document.getElementById("envio-txt");
+  clearTimeout(envTimer);
+  if(envPend > 0){
+    box.className = "envio show";
+    fill.style.width = Math.max(8, Math.round(envFeitos/envTotal*100)) + "%";
+    txt.textContent = navigator.onLine
+      ? `Enviando para a nuvem… ${envFeitos}/${envTotal}`
+      : `Sem sinal — ${envPend} leitura${envPend===1?"":"s"} aguardando envio`;
+    box.classList.toggle("offline", !navigator.onLine);
+  } else if(envTotal > 0){
+    box.className = "envio show ok";
+    fill.style.width = "100%";
+    txt.textContent = "✓ Tudo enviado para a nuvem";
+    envTimer = setTimeout(()=>{ box.className = "envio"; envTotal = 0; envFeitos = 0; }, 1800);
+  }
+}
+function rastrear(p){
+  envPend++; envTotal++; envAtualizar();
+  const fim = ()=>{ envPend--; envFeitos++; if(envPend===0){ envAtualizar(); } else envAtualizar(); };
+  Promise.resolve(p).then(fim, fim);
+  return p;
+}
+const setDoc = (...a)=>rastrear(_setDoc(...a));
+const deleteDoc = (...a)=>rastrear(_deleteDoc(...a));
+window.addEventListener("online", envAtualizar);
+window.addEventListener("offline", envAtualizar);
+
 function toast(msg){
   const t = document.getElementById("toast");
   t.textContent = msg;
@@ -713,8 +755,7 @@ function escutarHorariosPulados(){
 function renderPainelChuva(){
   const box = document.getElementById("painel-chuva");
   if(!box) return;
-  if(!(papel==="admin" || papel==="gestor")){ box.innerHTML = ""; return; }
-
+  // qualquer usuário logado (inclusive os vigilantes) pode pular/desfazer um horário por chuva
   const dataOp = dataOperacionalHoje();
   const candidatos = HORARIOS.filter(h=>!horariosPulados.has(h));
   const chips = [...horariosPulados]
